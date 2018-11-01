@@ -1,0 +1,75 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage{tabularx}
+\usepackage{ltablex}
+\usepackage{graphicx}
+\usepackage[cache=false]{minted}
+\setminted[erlang]{
+frame=lines,
+framesep=2mm,
+baselinestretch=1.1,
+fontsize=\footnotesize,
+linenos,
+breaklines}
+\setminted[haskell]{
+frame=lines,
+framesep=2mm,
+baselinestretch=1.1,
+fontsize=\footnotesize,
+linenos,
+breaklines}
+\usemintedstyle{friendly}
+% Add Subtitle
+\usepackage{titling}
+\newcommand{\subtitle}[1]{%
+  \posttitle{%
+    \par\end{center}
+    \begin{center}\large#1\end{center}
+    \vskip0.5em}%
+}
+
+\begin{document}
+
+\title{Advanced Programming}
+\subtitle{Exam 2018}
+
+\author{Silvan Robert Adrian}
+\date{\today}
+	
+\maketitle
+\tableofcontents
+
+\section{Solution}
+
+\subsection{Files}
+
+
+\subsection{Running the programm}
+
+
+\subsection{Running the tests}
+
+
+\section{Implementation}
+\subsection{Gen-Statem}
+
+\subsection{Data Structure}
+
+
+\subsection{All states}
+
+\section{Assessment}
+
+\subsection{Scope of Test Cases}
+
+\subsection{Correctness}
+
+\subsection{Code Quality}
+
+
+\appendix
+\section{Code Listing}
+\subsection{Whatever Code is here}
+%\inputminted{erlang}{handin/src/quizmaster.erl}
+%\inputminted{erlang}{handin/src/quizmaster_helpers.erl}
+
+\end{document}
