@@ -4,18 +4,19 @@ module Utils where
 -- should be placed here.
 
 import Defs
-import Data.Bool
 
 instance Ord Version where
   (<=) (V[]) _ = False
   (<=) (V(_:_)) (V []) = True
   (<=) (V[VN v1int v1str])  (V[VN v2int v2str]) =
     if checkVersion v1int v2int v1str v2str then True else False
-  (<=) (V(VN v1int v1str:xs))  (V(VN v2int v2str:ys)) = V(xs) <= V(ys)
+  (<=) (V(VN _ _:xs))  (V(VN _ _:ys)) = V(xs) <= V(ys)
 
 checkVersion :: Int -> Int -> String -> String -> Bool
 checkVersion a b c d = a <= b && (c <= d || length(c) <= length(d))
-  -- or define 'compare' instead
 
 merge :: Constrs -> Constrs -> Maybe Constrs
-merge = undefined
+merge [] [] = Just []
+merge c1 [] = Just c1
+merge [] c2 = Just c2
+merge (c1) (c2) = Just (c1 ++ c2)
