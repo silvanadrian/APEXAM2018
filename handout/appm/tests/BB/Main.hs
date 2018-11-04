@@ -28,9 +28,9 @@ utilities = testGroup "Utilities tests"
         testCase "Version 1.1a <= 1.1b" $ V [VN 1 "", VN 1 "a"] <= V [VN 1 "", VN 1 "b"] @?= True,
         testCase "Version 4.0.1 <= 04.00.001" $ V [VN 4 "", VN 0 "", VN 1 ""] <= V [VN 04 "", VN 00 "", VN 001 ""] @?= True,
         testCase "Version 4.0.1.3 <= 4.1.2" $ V [VN 4 "", VN 0 "", VN 1 "", VN 3 ""] <= V [VN 4 "", VN 1 "", VN 2 ""] @?= True,
-        testCase "802.11 <= 802.11n" $ V [VN 8 "", VN 0 "", VN 2 "", VN 1 "", VN 1 ""] <= V [VN 8 "", VN 0 "", VN 2 "", VN 1 "", VN 1 "n"] @?= True,
-        testCase "802.11n <= 802.11ax" $ V [VN 8 "", VN 0 "", VN 2 "", VN 1 "", VN 1 "n"] <= V [VN 8 "", VN 0 "", VN 2 "", VN 1 "", VN 1 "ax"] @?= True,
-        testCase "802.11ax <= 802.11bb" $ V [VN 8 "", VN 0 "", VN 2 "", VN 1 "", VN 1 "ax"] <= V [VN 8 "", VN 0 "", VN 2 "", VN 1 "", VN 1 "bb"] @?= True,
+        testCase "802.11 <= 802.11n" $ V [VN 802 "", VN 11 ""] <= V [VN 802 "", VN 11 "n"] @?= True,
+        testCase "802.11n <= 802.11ax" $ V [VN 802 "", VN 11 "n"] <= V [VN 802 "", VN 11 "ax"] @?= True,
+        testCase "802.11ax <= 802.11bb" $ V [VN 802 "", VN 11 "ax"] <= V [VN 802 "", VN 11 "bb"] @?= True,
         -- Merge Constraints -> not really perfect yet no check if constraint makes sense or not
         testCase "Merge 2 Empty Lists" $ merge [] [] @?= Just [],
         testCase "Merge non empty and empty List" $ merge [(P "Test", (False, V [VN 0 ""] , V [VN 1 ""] ))] [] @?= Just [(P "Test", (False, V [VN 0 ""] , V [VN 1 ""] ))],
