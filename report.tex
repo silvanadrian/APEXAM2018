@@ -17,6 +17,13 @@ baselinestretch=1.1,
 fontsize=\footnotesize,
 linenos,
 breaklines}
+\setminted[bnf]{
+frame=lines,
+framesep=2mm,
+baselinestretch=1.1,
+fontsize=\footnotesize,
+linenos,
+breaklines}
 \usemintedstyle{friendly}
 % Add Subtitle
 \usepackage{titling}
@@ -45,11 +52,20 @@ The Code for this task is attached in the appendix \ref{appendix:question1-1}.
 
 
 \section{Question 1.2: Parsing appm databases}
+\subsection{Choice of parser library}
 I implemented the Parser for appm in parsec, mostly out of this reason:
 \begin{itemize}
 	\item Better Error handling compared to ReadP
 	\item I do have more experience with Parsec then ReadP
 \end{itemize}
+
+\subsection{Transform Grammar}
+The existing grammar has some ambiguities, like allowing many names, version etc. which now transformed to only allow once
+\begin{minted}{bnf}
+Database ::= \epsilon
+
+\end{minted}
+
 
 %\section{Solution}
 %\subsection{Files}

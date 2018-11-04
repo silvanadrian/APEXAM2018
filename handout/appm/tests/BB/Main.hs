@@ -38,11 +38,19 @@ utilities = testGroup "Utilities tests"
         Just [(P "Test",(False,V [VN 0 ""],V [VN 1 ""])),(P "Test",(False,V [VN 0 ""],V [VN 1 ""]))]
     ]
 
+
+parser = testGroup "Parser Tests"
+    [
+      testCase "tiny" $
+              parseDatabase "package {name foo;}package {name foo}" @?= Right db],
+    ]
+
+
 -- just a sample; feel free to replace with your own structure
 predefined = testGroup "predefined"
   [testGroup "Parser tests"
      [testCase "tiny" $
-        parseDatabase "package {name foo}" @?= Right db],
+        parseDatabase "package {name foo}package {name foo}package {name foo}" @?= Right db],
    testGroup "Solver tests"
      [testCase "tiny" $
         install db pname @?= Just [(pname, ver)] ] ]
