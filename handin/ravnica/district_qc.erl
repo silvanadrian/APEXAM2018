@@ -12,8 +12,8 @@ atom() ->
 territory() ->
     eqc_gen:map(eqc_gen:int(), {atom(), eqc_gen:int()}).
 
-setup_territory(_) ->
-    undefined.
+setup_territory(Map) ->
+    ?FORALL(Map, territory(), district:activate(maps:keys(Map), district:connect(maps:keys(Map),maps:values(Map)))).
 
 prop_activate() ->
     false.
