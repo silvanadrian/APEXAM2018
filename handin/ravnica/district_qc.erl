@@ -10,20 +10,26 @@ s_gen() ->
 
 % use atoms with chars from a to z
 atom() ->
-    ?LET(S, s_gen(), list_to_atom(S)).
+    ?LET(S, list(eqc_gen:choose(97, 122)), list_to_atom(S)).
 
 territory() ->
-    eqc_gen:map(eqc_gen:int(), {atom(), eqc_gen:int()}).
+    eqc_gen:map(eqc_gen:int(), list({atom(), eqc_gen:int()})).
 
-create_districts([], Result) -> Result;
-create_districts([{Key, {Atom, To}} | Districts], Result) ->
+create_districts([], Result) -> lists:flatten(Result);
+create_districts([{Key, Connections} | Districts], Result) ->
     {ok, Pid1} = district:create(Key),
-    {ok, Pid2} = district:create(To),
-    district:connect(Pid1, Atom, Pid2),
-    NewResult = lists:append([Pid1,Pid2], Result),
+    Connect = create_connections(Pid1, Connections, []),
+    NewResult = lists:append([Pid1, Connect], Result),
     create_districts(Districts, NewResult).
 
-%%#{-5 => {hbcx,-8}, 0 => {wjbnr,15}, 4 => {zeploa,13}, 6 => {vqpciz,-10},19 => {tblb,-13}}
+create_connections(_Pid, [], Result) -> Result;
+create_connections(Pid, [{Atom, To} | Connections], Result) ->
+    {ok, Pid2} = district:create(To),
+    district:connect(Pid, Atom, Pid2),
+    NewResult = lists:append([Pid2], Result),
+    create_connections(Pid, Connections, NewResult).
+
+%%#{-4 => [{ejbdi,-1},{jennby,16}], 6 => [{fa,-12},{ta,-17},{keyj,-15}], 8 => [{w,-17}]}
 %% create all district in a map and conec
 setup_territory(Map) ->
     create_districts(maps:to_list(Map), []).
@@ -33,3 +39,5 @@ prop_activate() ->
 
 prop_take_action() ->
     false.
+
+
