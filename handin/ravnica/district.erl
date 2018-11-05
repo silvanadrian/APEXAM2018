@@ -54,8 +54,8 @@ shutdown(District, NextPlane) ->
     gen_statem:call(District, {shutdown, NextPlane}).
 
 -spec trigger(passage(), trigger()) -> ok | {error, any()} | not_supported.
-trigger(_, _) ->
-    not_supported.
+trigger(District, Trigger) ->
+    gen_statem:call(District, {trigger, Trigger}).
 
 
 %% States
@@ -90,6 +90,9 @@ handle_event({call, From}, {shutdown, NextPlane}, Data) ->
   broadcast_shutdown(maps:to_list(maps:get(connections, Data)), NextPlane),
   {stop_and_reply, normal, {reply, From, ok}};
 
+handle_event({call, From}, {trigger, _Trigger}, Data) ->
+  {keep_state, Data, {reply, From, {error, "Can't set a trigger in this state"}}};
+
 % ignore all other unhandled events
 handle_event(_EventType, _EventContent, Data) ->
   {keep_state, Data}.
@@ -108,6 +111,10 @@ under_configuration({call, From}, activate, Data) ->
       _ -> {next_state, active, Data, {reply, From, impossible}}
     end;
 
+under_configuration({call, From}, {trigger, Trigger}, Data) ->
+  NewData = maps:update(trigger, Trigger, Data),
+  {keep_state, NewData, {reply, From, ok}};
+
 %% General Event Handling for state under_configuration
 under_configuration(EventType, EventContent, Data) ->
   handle_event(EventType, EventContent, Data).
@@ -117,6 +124,10 @@ active({call, From}, {enter, {Ref, Stats}}, Data) ->
     true -> {keep_state, Data, {reply, From, {error, "Creture is already in this District"}}};
     false ->  NewCreatures = maps:put(Ref, Stats, maps:get(creatures, Data)),
               NewData = maps:update(creatures, NewCreatures, Data),
+              case maps:get(trigger, Data) of
+                      none -> void;
+                      Trigger -> Trigger(entering, {Ref, Stats}, maps:to_list(NewCreatures))
+              end,
               {keep_state, NewData, {reply, From, ok}}
   end;
 
@@ -128,7 +139,11 @@ active({call, From}, {take_action, CRef, Action}, Data) ->
         true -> {NewData, To} = creature_leave(CRef, Action, Data),
                 case NewData of
                   error -> {keep_state, Data, {reply, From, {error, To}}};
-                  _ ->      {keep_state, NewData, {reply, From, {ok, To}}}
+                  _ ->  case maps:get(trigger, Data) of
+                          none -> void;
+                          Trigger -> Trigger(leaving, maps:get(CRef, maps:get(creatures, Data)), maps:to_list(maps:get(creatures, Data)))
+                        end,
+                      {keep_state, NewData, {reply, From, {ok, To}}}
                 end
       end;
     false -> {keep_state, Data, {reply, From, {error, "Action doesn't exist"}}}
@@ -148,7 +163,7 @@ code_change(_Vsn, State, Data, _Extra) ->
 % initial State under_configuration
 init(Desc) ->
   %% Set the initial state + data
-  State = under_configuration, Data = #{description => Desc, connections => #{}, creatures => #{}},
+  State = under_configuration, Data = #{description => Desc, connections => #{}, creatures => #{}, trigger => none},
   {ok, State, Data}.
 
 callback_mode() -> state_functions.

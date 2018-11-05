@@ -70,6 +70,9 @@ dsitrict_take_action_test() ->
   % But now in district B
   ?assertMatch({error, _}, district:enter(B, Katniss)).
 
+cheers(_, _Creature, _Creatures) ->
+  io:format("Cheeeeers!~n").
+
 district_shutdown_test() ->
   {ok, A} = district:create("A"),
   {ok, B} = district:create("B"),
@@ -87,4 +90,19 @@ district_shutdown_test() ->
   ?assertEqual(undefined, process_info(A)),
   ?assertEqual(undefined, process_info(B)),
   ?assertEqual(undefined, process_info(C)).
+
+district_trigger_test() ->
+  {ok, A} = district:create("A"),
+  {ok, B} = district:create("B"),
+  {ok, C} = district:create("C"),
+
+  district:connect(A, b, B),
+  district:connect(A, c, C),
+
+  %%?assertEqual(ok, district:trigger(A, fun cheers/3)),
+  district:trigger(A, fun cheers/3),
+  district:activate(A),
+  Katniss = {make_ref(), #{}},
+  district:enter(A,Katniss).
+
 
