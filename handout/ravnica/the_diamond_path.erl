@@ -30,7 +30,7 @@ a_love_story() ->
 
   % But fortunately, there is no way to get lost in the diamond path.
   district:take_action(B, BobRef, d),
-  district:take_action(B, AliceRef, d),
+  district:take_action(C, AliceRef, d),  % <------------- | changed in ver. 1.0.1 |
   A.
 
 % THE END

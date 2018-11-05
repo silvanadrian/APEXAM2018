@@ -19,4 +19,12 @@ merge :: Constrs -> Constrs -> Maybe Constrs
 merge [] [] = Just []
 merge c1 [] = Just c1
 merge [] c2 = Just c2
+-- merge ((pname1,(bool1, miv1, mxv1)):xs) ((pname2,(bool2, miv2,mxv2)):ys) =
+--                                                            if miv1 <= (miv2 <= mxv1)  then
+--                                                                 if miv1 <= (mxv1 <= mxv2) then
+--                                                                     Just [(pname2, (bool1,miv1, mxv2))]
+--                                                                 else
+--                                                                     Nothing
+--                                                            else
+--                                                                 Nothing
 merge (c1) (c2) = Just (c1 ++ c2)

@@ -32,8 +32,8 @@ lille_up1(entering, {CreatureRef, Stats}, Creatures, KenRef, AndrzejRef) ->
     AndrzejPresent = lists:member(AndrzejRef, CreatureRefs),
     if KenPresent and AndrzejPresent ->
         {{CreatureRef, Stats#{stunned => true}}, Creatures};
-       true ->
-        {{CreatureRef, Stats}, Creatures}
+        true ->
+            {{CreatureRef, Stats}, Creatures}
     end;
 lille_up1(leaving, _Creature, _Creatures, _KenRef, _AndrzejRef) ->
     % This is misbehaving, thus the trigger has no effect
@@ -43,7 +43,7 @@ generate_territory() ->
     {ok, KensOffice} = district:create("Ken's office"),
     {ok, AndrzejsOffice} = district:create("Andrzej's office"),
     {ok, CoffeeMachine} =
-        district:create("The Coffee Machine at the end of the APL hallway"),
+        district:create("The Coffee Machine at the end of the PLTC hallway"),
     {ok, Canteen} =
         district:create("The Canteen at the top floor of the DIKU building"),
     {ok, Cafeen} = district:create("The student bar, \"Caféen?\""),
@@ -67,17 +67,17 @@ generate_territory() ->
 
     % Places to spawn or place advanced triggers
     [KensOffice, AndrzejsOffice, CoffeeMachine, Canteen, Bathroom,
-     Cafeen, LilleUP1].
+        Cafeen, LilleUP1].
 
 place_triggers(KenRef, AndrzejRef, AndrzejsOffice, Cafeen,
-               Bathroom, LilleUP1) ->
+    Bathroom, LilleUP1) ->
     district:trigger(AndrzejsOffice, fun andrzejs_office/3),
     district:trigger(Cafeen, fun cheers/3),
     district:trigger(Bathroom, fun rest_a_bit/3),
     district:trigger(LilleUP1,
-           fun (Event, Creature, Creatures) ->
-              lille_up1(Event, Creature, Creatures, KenRef, AndrzejRef)
-           end),
+        fun (Event, Creature, Creatures) ->
+            lille_up1(Event, Creature, Creatures, KenRef, AndrzejRef)
+        end),
     ok.
 
 run_world() ->
@@ -88,10 +88,10 @@ run_world() ->
     AndrzejStats = #{hp => 100, sanity => 80, mana => 100},
 
     [KensOffice, AndrzejsOffice, CoffeeMachine, Canteen, Bathroom,
-     Cafeen, LilleUP1] = generate_territory(),
+        Cafeen, LilleUP1] = generate_territory(),
 
     place_triggers(KenRef, AndrzejRef, AndrzejsOffice, Cafeen,
-                   Bathroom, LilleUP1),
+        Bathroom, LilleUP1),
 
     % Activate the initial nodes. The rest will follow
     active = district:activate(KensOffice),
@@ -112,14 +112,18 @@ run_world() ->
     ok = district:enter(AndrzejsOffice, Andrzej),
     ok = district:enter(Cafeen, {PrebenRef, PrebenStats}),
     lists:map(fun (StudentRef) ->
-                      ok = district:enter(Canteen, {StudentRef, StudentStats})
+        ok = district:enter(Canteen, {StudentRef, StudentStats})
               end, StudentRefs),
 
-    ok = district:take_action(KensOffice, KenRef, restore_health),
-    ok = district:take_action(AndrzejsOffice, AndrzejRef, sneak),
+
+
+    % =====| Following two lines changed in ver. 1.0.1 | =====
+    {ok, _} = district:take_action(KensOffice, KenRef, restore_health),
+    {ok, _} = district:take_action(AndrzejsOffice, AndrzejRef, sneak),
 
     % That morning, Bob thought he could sneak into Lille UP1 before Andrzej,
     % but he was already too late
-    ok = district:take_action(Canteen, hd(StudentRefs), have_courage),
-    ok = district:take_action(CoffeeMachine, KenRef, surprise_attack),
+    % =====| Following two lines changed in ver. 1.0.1 | =====
+    {ok, _} = district:take_action(Canteen, hd(StudentRefs), have_courage),
+    {ok, _} = district:take_action(CoffeeMachine, KenRef, surprise_attack),
     {KensOffice, AndrzejsOffice, Canteen}.
