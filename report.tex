@@ -67,7 +67,8 @@ Database ::= \epsilon
 \end{minted}
 
 
-\section{Question 2: Earls of Ravnica}
+\section{Earls of Ravnica}
+The code for this task can be found in Appendix
 \subsection{Solution}
 \subsection{Implementation}
 The earls of Ravnica can be seen as a state machine for which I chose to use gen\_statem.
@@ -82,6 +83,14 @@ The following states exist:
 	\includegraphics{images/ravnica}
 	\caption{Simple State machine diagramm}
 \end{figure}
+
+\subsection{Data Structure}
+The Data structure I used to implement Ravnica consists of a map with following entries:
+\begin{itemize}
+	\item \textbf{description} Saves the description which gets saved when starting a server
+	\item \textbf{connections} Map for Handling the connections from one District to an other
+	\item \textbf{creatures} Map for handling all the entered/active creatures on a Server
+\end{itemize}
 
 
 %\section{Solution}
@@ -104,10 +113,11 @@ The following states exist:
 
 \appendix
 \section{Code Listing}
-\subsection{Question 1.1: handout/appm/src/Utils.hs}
+\subsection{Question 1.1: handin/appm/src/Utils.hs}
 \label{appendix:question1-1}
-\inputminted{haskell}{handout/appm/src/Utils.hs}
-%\inputminted{erlang}{handin/src/quizmaster.erl}
+\inputminted{haskell}{handin/appm/src/Utils.hs}
+\subsection{Question 2.1: handin/ravnica/district.erl}
+\inputminted{erlang}{handin/ravnica/district.erl}
 %\inputminted{erlang}{handin/src/quizmaster_helpers.erl}
 
 \end{document}

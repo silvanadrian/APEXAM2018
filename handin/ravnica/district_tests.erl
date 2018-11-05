@@ -64,8 +64,27 @@ dsitrict_take_action_test() ->
   ?assertMatch({error, _}, district:enter(A,Katniss)),
   %Creature hasn't joined A District
   ?assertMatch({error, _}, district:take_action(A, PeetaRef, b)),
-  ?assertEqual(ok, district:take_action(A, KatnissRef, b)),
+  ?assertMatch({ok, _}, district:take_action(A, KatnissRef, b)),
   % Katniss now not in District A anymore
   ?assertEqual(ok, district:enter(A, Katniss)),
   % But now in district B
   ?assertMatch({error, _}, district:enter(B, Katniss)).
+
+district_shutdown_test() ->
+  {ok, A} = district:create("A"),
+  {ok, B} = district:create("B"),
+  {ok, C} = district:create("C"),
+
+  % Process is available
+  ?assertMatch([_ | _], process_info(A)),
+  ?assertMatch([_ | _], process_info(B)),
+  ?assertMatch([_ | _], process_info(C)),
+  district:connect(A, b, B),
+  district:connect(A, c, C),
+
+  ?assertEqual(ok,district:shutdown(A, self())),
+  % after shutdown undefined
+  ?assertEqual(undefined, process_info(A)),
+  ?assertEqual(undefined, process_info(B)),
+  ?assertEqual(undefined, process_info(C)).
+
