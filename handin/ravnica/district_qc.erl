@@ -5,8 +5,12 @@
 
 -include_lib("eqc/include/eqc.hrl").
 
+% use atoms with chars from a to z
+atom() ->
+    ?LET(S, eqc_gen:list(eqc_gen:choose(97, 122)), list_to_atom(S)).
+
 territory() ->
-    undefined.
+    eqc_gen:map(eqc_gen:int(), {atom(), eqc_gen:int()}).
 
 setup_territory(_) ->
     undefined.
