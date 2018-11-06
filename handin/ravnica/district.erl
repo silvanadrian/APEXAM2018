@@ -69,7 +69,7 @@ handle_event({call, From}, options, Data) ->
   {keep_state, Data, {reply, From, {ok, maps:keys(maps:get(connections, Data))}}};
 
 % ignore all other unhandled events
-handle_event({call, From}, activate_instantion, Data) ->
+handle_event({call, From}, activate, Data) ->
   {next_state, active, Data, {reply, From, ok}};
 
 handle_event({call, From}, {run_action, CRef, Stats}, Data) ->
@@ -123,7 +123,8 @@ under_configuration(EventType, EventContent, Data) ->
   handle_event(EventType, EventContent, Data).
 
 under_activation(internal, From, Data) ->
-  Result = broadcast_connection(maps:to_list(maps:get(connections, Data)), active),
+  io:fwrite("activate ~p~n", [From]),
+  Result = broadcast_connection(maps:to_list(maps:get(connections, Data)), From, active),
   case Result of
     impossible -> {next_state, under_configuration, Data, {reply, From, Result}};
     active -> {next_state, active, Data, {reply, From, Result}}
@@ -235,13 +236,18 @@ broadcast_shutdown([{_Action, To} | Actions], NextPlane) ->
   broadcast_shutdown(Actions, NextPlane).
 
 %% Synchronous Call which should wait until each response
-broadcast_connection([], Result) -> Result;
-broadcast_connection([{_Action, To} | Actions], _) ->
+broadcast_connection([], _, Result) -> Result;
+broadcast_connection([{_Action, To} | Actions], {Pid, Ref} ,_) ->
   case is_process_alive(To) of
     false -> Result1 = impossible;
-    true -> gen_statem:call(To, activate_instantion), Result1 = active
+    true -> io:fwrite("activate ~p~n, Pid ~p~n", [To, Pid]),
+            Result1 = active,
+            case term_to_binary(To) == term_to_binary(Pid) of
+              false -> gen_statem:call(To, activate);
+              true -> void
+            end
   end,
-  broadcast_connection(Actions, Result1).
+  broadcast_connection(Actions, {Pid, Ref}, Result1).
 
 creature_leave(CRef, Action, Data) ->
   To = maps:get(Action, maps:get(connections, Data)),
