@@ -75,6 +75,7 @@ The earls of Ravnica can be seen as a state machine for which I chose to use gen
 The following states exist:
 \begin{itemize}
 	\item Under Configuration
+	\item Under Activation
 	\item Active
 	\item Shutting down
 \end{itemize}
@@ -90,13 +91,32 @@ The Data structure I used to implement Ravnica consists of a map with following 
 	\item \textbf{description} Saves the description which gets saved when starting a server
 	\item \textbf{connections} Map for Handling the connections from one District to an other
 	\item \textbf{creatures} Map for handling all the entered/active creatures on a Server
+	\item \textbf{trigger} Set a trigger for a district
 \end{itemize}
 
 \subsection{All states}
+Messages which get accepted in all states.
+\subsubsection{get\_description}
+Gets the description \texttt{Desc} which gets set on create of a District.
 
 \subsection{Under configuration}
+As soon as a Server started it is in the under\_configuration state.
+\subsubsection{connect}
+Connects 2 District with a Action, by saving it in the \texttt{connections} map, 
+connects can only be made while district is under configuration in other states an error gets returned.
+
+\subsubsection{trigger}
+Under configuration also a trigger can be added to the server, here always the last one gets taken (overwritting whit the newest one).
+
+\subsection{Under activation}
+When \texttt{activate} gets called the district and it's neighbors need to get activated, under\_activation is a intermediate state until all neighbors and the district itself are activated.
+In case the neighbors can't be activated (for example when a neighbor got shutdown), then the server goes back to the state of under\_configuration.
+
+\subsubsection{activate}
+Activate tries to activate all it's neighbors and changes the state of the server to \texttt{active} or back to \texttt{under\_configuration}.
 
 \subsection{Active}
+In the active state, no more new connections can be added 
 
 \subsection{Shutting down}
 

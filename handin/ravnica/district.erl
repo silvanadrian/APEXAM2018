@@ -12,7 +12,7 @@
 %% Gen_statem callbacks
 -export([terminate/3, code_change/4, init/1, callback_mode/0]).
 %State Functions
--export([under_configuration/3, active/3]).
+-export([under_configuration/3, active/3, shutting_down/3, under_activation/3]).
 -type passage() :: pid().
 -type creature_ref() :: reference().
 -type creature_stats() :: map().
@@ -87,11 +87,13 @@ handle_event({call, From}, {enter, _}, Data) ->
 % Shutdown can be called in any state
 handle_event({call, From}, {shutdown, NextPlane}, Data) ->
   NextPlane ! {shutting_down, From, maps:to_list(maps:get(creatures, Data))},
-  broadcast_shutdown(maps:to_list(maps:get(connections, Data)), NextPlane),
-  {stop_and_reply, normal, {reply, From, ok}};
+  {next_state, shutting_down, Data, {next_event, internal, {From, NextPlane}}};
 
 handle_event({call, From}, {trigger, _Trigger}, Data) ->
   {keep_state, Data, {reply, From, {error, "Can't set a trigger in this state"}}};
+
+handle_event({call, From}, {connect, _Action, _To}, Data) ->
+  {keep_state, Data, {reply, From, {error, "Can't connect in this state"}}};
 
 % ignore all other unhandled events
 handle_event(_EventType, _EventContent, Data) ->
@@ -106,10 +108,8 @@ under_configuration({call, From}, {connect, Action, To}, Data) ->
   end;
 
 under_configuration({call, From}, activate, Data) ->
-    case broadcast_connection(maps:to_list(maps:get(connections, Data))) of
-      active -> {next_state, active, Data, {reply, From, active}};
-      _ -> {next_state, active, Data, {reply, From, impossible}}
-    end;
+    {next_state, under_activation, Data, {next_event, internal, From}};
+
 
 under_configuration({call, From}, {trigger, Trigger}, Data) ->
   NewData = maps:update(trigger, Trigger, Data),
@@ -117,6 +117,20 @@ under_configuration({call, From}, {trigger, Trigger}, Data) ->
 
 %% General Event Handling for state under_configuration
 under_configuration(EventType, EventContent, Data) ->
+  handle_event(EventType, EventContent, Data).
+
+under_activation(internal, From, Data) ->
+  Result = broadcast_connection(maps:to_list(maps:get(connections, Data)), active),
+  case Result of
+    impossible ->   {next_state, under_configuration, Data, {reply, From, Result}};
+    active ->   {next_state, active, Data, {reply, From, Result}}
+  end;
+
+under_activation({call, From}, activate, Data) ->
+  {keep_state, Data, {reply, From, under_activation}};
+
+%% General Event Handling for state under_activation
+under_activation(EventType, EventContent, Data) ->
   handle_event(EventType, EventContent, Data).
 
 active({call, From}, {enter, {Ref, Stats}}, Data) ->
@@ -149,8 +163,27 @@ active({call, From}, {take_action, CRef, Action}, Data) ->
     false -> {keep_state, Data, {reply, From, {error, "Action doesn't exist"}}}
   end;
 
+active({call, From}, activate, Data) ->
+  {keep_state, Data, {reply, From, active}};
+
 %% Handle Calls to active
 active(EventType, EventContent, Data) ->
+  handle_event(EventType, EventContent, Data).
+
+shutting_down(internal, {From, NextPlane}, Data) ->
+  case broadcast_shutdown(maps:to_list(maps:get(connections, Data)), NextPlane, ok) of
+    ok -> {stop_and_reply, normal, {reply, From, ok}};
+    nok -> {stop_and_reply, normal, {reply, From, impossible}}
+  end;
+
+shutting_down({call, From}, activate, Data) ->
+  {keep_state, Data, {reply, From, impossible}};
+
+shutting_down({call, From}, options, Data) ->
+  {keep_state, Data, {reply, From, none}};
+
+%% Handle Calls to shutting_down
+shutting_down(EventType, EventContent, Data) ->
   handle_event(EventType, EventContent, Data).
 
 %% Mandatory callback functions
@@ -169,16 +202,22 @@ init(Desc) ->
 callback_mode() -> state_functions.
 
 %% Synchronous Call which should wait until each response
-broadcast_shutdown([], _NextPlane) -> ok;
-broadcast_shutdown([{_Action, To} | Actions ], NextPlane) ->
-  gen_statem:call(To, {shutdown, NextPlane}),
-  broadcast_shutdown(Actions, NextPlane).
+broadcast_shutdown([], _NextPlane, Result) -> Result;
+broadcast_shutdown([{_Action, To} | Actions ], NextPlane, Result) ->
+  case gen_statem:call(To, {shutdown, NextPlane}) of
+    ok -> Result = ok;
+    _ -> Result = nok
+  end,
+  broadcast_shutdown(Actions, NextPlane, Result).
 
 %% Synchronous Call which should wait until each response
-broadcast_connection([]) -> active;
-broadcast_connection([{_Action, To} | Actions ]) ->
-  gen_statem:call(To, activate_instantion),
-  broadcast_connection(Actions).
+broadcast_connection([], Result) -> Result;
+broadcast_connection([{_Action, To} | Actions ], _) ->
+  case is_process_alive(To) of
+    false -> Result1 = impossible;
+    true ->  Result1 = active, gen_statem:call(To, activate_instantion)
+  end,
+  broadcast_connection(Actions, Result1).
 
 creature_leave(CRef, Action, Data) ->
   To = maps:get(Action, maps:get(connections, Data)),

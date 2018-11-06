@@ -10,32 +10,50 @@ district_create_test() ->
 
 district_get_description_test() ->
   {ok, P} = district:create("Panem"),
+  ?assertEqual({ok, "Panem"}, district:get_description(P)),
+  district:activate(P),
   ?assertEqual({ok, "Panem"}, district:get_description(P)).
 
 district_connect_districts_test() ->
-
-  {ok, A} = district:create("A"),
-  {ok, B} = district:create("B"),
-  {ok, C} = district:create("C"),
+  {A,B,C} = create_districts(),
 
   ?assertEqual(ok, district:connect(A, b, B)),
   district:connect(A, c, C),
+  % Action c already exists in A
+  ?assertEqual(active, district:activate(A)),
+  ?assertMatch({error, _}, district:connect(A, c, C)).
+
+district_active_test() ->
+  {A,B,C} = create_districts(),
+
+  district:connect(A, c, C),
+  district:shutdown(C,self()),
+  % Process C not alive anymore, so A can't be activated
+  ?assertEqual(false, is_process_alive(C)),
+  ?assertEqual(impossible, district:activate(A)),
+  % B doesn't have any neighbors, so easily to be activated
+  ?assertEqual(active, district:activate(B)).
+
+district_active2_test() ->
+  {A,_,C} = create_districts(),
+
+  district:connect(A, c, C),
+  % Activate C already, activate A later
+  ?assertEqual(active, district:activate(C)),
   ?assertEqual(active, district:activate(A)).
 
 district_options_test() ->
-  {ok, A} = district:create("A"),
-  {ok, B} = district:create("B"),
-  {ok, C} = district:create("C"),
+  {A,B,C} = create_districts(),
 
   district:connect(A, b, B),
   district:connect(A, c, C),
 
-  ?assertEqual({ok, [b,c]}, district:options(A)).
+  ?assertEqual({ok, [b,c]}, district:options(A)),
+  ?assertEqual({ok, []}, district:options(B)),
+  ?assertEqual({ok, []}, district:options(C)).
 
 district_enter_test() ->
-  {ok, A} = district:create("A"),
-  {ok, B} = district:create("B"),
-  {ok, C} = district:create("C"),
+  {A,B,C} = create_districts(),
 
   district:connect(A, b, B),
   district:connect(A, c, C),
@@ -47,9 +65,7 @@ district_enter_test() ->
   ?assertEqual(ok, district:enter(A,Bob)).
 
 dsitrict_take_action_test() ->
-  {ok, A} = district:create("A"),
-  {ok, B} = district:create("B"),
-  {ok, C} = district:create("C"),
+  {A,B,C} = create_districts(),
 
   district:connect(A, b, B),
   district:connect(A, c, C),
@@ -74,9 +90,7 @@ cheers(_, _Creature, _Creatures) ->
   io:format("Cheeeeers!~n").
 
 district_shutdown_test() ->
-  {ok, A} = district:create("A"),
-  {ok, B} = district:create("B"),
-  {ok, C} = district:create("C"),
+  {A,B,C} = create_districts(),
 
   % Process is available
   ?assertMatch([_ | _], process_info(A)),
@@ -92,9 +106,7 @@ district_shutdown_test() ->
   ?assertEqual(undefined, process_info(C)).
 
 district_trigger_test() ->
-  {ok, A} = district:create("A"),
-  {ok, B} = district:create("B"),
-  {ok, C} = district:create("C"),
+  {A,B,C} = create_districts(),
 
   district:connect(A, b, B),
   district:connect(A, c, C),
@@ -106,3 +118,8 @@ district_trigger_test() ->
   district:enter(A,Katniss).
 
 
+create_districts() ->
+  {ok, A} = district:create("A"),
+  {ok, B} = district:create("B"),
+  {ok, C} = district:create("C"),
+  {A,B,C}.
