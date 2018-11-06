@@ -155,9 +155,10 @@ district_active_cycle_test() ->
   district:connect(B, c, C),
   district:connect(C, c, C),
   district:activate(A),
-  Katniss = {make_ref(), #{}},
+  {Ref, _} = Katniss = {make_ref(), #{}},
   % all connected districts get active
-  ?assertMatch(ok, district:enter(C, Katniss)).
+  ?assertMatch(ok, district:enter(C, Katniss)),
+  district:take_action(C,Ref,c).
 
 %%increment_grade(_, {CreatureRef, Stats}, Creatures) ->
 %%  #{grade := CurGrade} = Stats,

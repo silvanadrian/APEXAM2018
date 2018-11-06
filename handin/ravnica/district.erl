@@ -178,7 +178,7 @@ active({call, From}, {take_action, CRef, Action}, Data) ->
             {{Ref, Stats}, _} -> NewCreatures = maps:put(Ref, Stats, maps:get(creatures, Data)),
               NewDataCreatures = maps:update(creatures, NewCreatures, Data)
           end,
-          {NewData, To} = creature_leave(CRef, Action, NewDataCreatures),
+          {NewData, To} = creature_leave(CRef, Action, From, NewDataCreatures),
           case NewData of
             error -> {keep_state, Data, {reply, From, {error, To}}};
             _ -> {keep_state, NewData, {reply, From, {ok, NewData}}}
@@ -195,7 +195,7 @@ active(EventType, EventContent, Data) ->
   handle_event(EventType, EventContent, Data).
 
 shutting_down(internal, {From, NextPlane}, Data) ->
-  Result = broadcast_shutdown(maps:to_list(maps:get(connections, Data)),From, NextPlane),
+  Result = broadcast_shutdown(maps:to_list(maps:get(connections, Data)), From, NextPlane),
   {stop_and_reply, normal, {reply, From, Result}};
 
 shutting_down({call, From}, activate, Data) ->
@@ -245,33 +245,37 @@ broadcast_shutdown([{_Action, To} | Actions], {Pid, Ref}, NextPlane) ->
 
 %% Synchronous Call which should wait until each response
 broadcast_connection([], _, Result) -> Result;
-broadcast_connection([{_Action, To} | Actions], {Pid, Ref} ,_) ->
+broadcast_connection([{_Action, To} | Actions], {Pid, Ref}, _) ->
   case is_process_alive(To) of
     false -> Result1 = impossible;
     true -> io:fwrite("activate ~p~n, Pid ~p~n, Self ~p~n", [To, Pid, self()]),
-            Result1 = active,
-            case term_to_binary(To) == term_to_binary(Pid) of
-              false ->  case term_to_binary(To) == term_to_binary(self()) of
-                          true -> void;
-                          false -> gen_statem:call(To, activate)
-                        end;
-              true -> void
-            end
+      Result1 = active,
+      case term_to_binary(To) == term_to_binary(Pid) of
+        false -> case term_to_binary(To) == term_to_binary(self()) of
+                   true -> void;
+                   false -> gen_statem:call(To, activate)
+                 end;
+        true -> void
+      end
   end,
   broadcast_connection(Actions, {Pid, Ref}, Result1).
 
-creature_leave(CRef, Action, Data) ->
+creature_leave(CRef, Action, {Pid, _}, Data) ->
   To = maps:get(Action, maps:get(connections, Data)),
   Stats = maps:get(CRef, maps:get(creatures, Data)),
   case is_process_alive(To) of
-    true -> case gen_statem:call(To, {run_action, CRef, Stats}) of
-              ok -> NewCreatures = maps:remove(CRef, maps:get(creatures, Data)),
-                NewData = maps:update(creatures, NewCreatures, Data),
-                {NewData, To};
-              {error, Reason} -> {error, Reason}
+    true -> io:fwrite("activate ~p~n, Pid ~p~n, Self ~p~n", [To, Pid, self()]),
+            case term_to_binary(self()) == term_to_binary(To) of
+              true -> {Data, To};
+              false -> case gen_statem:call(To, {run_action, CRef, Stats}) of
+                         ok -> NewCreatures = maps:remove(CRef, maps:get(creatures, Data)),
+                           NewData = maps:update(creatures, NewCreatures, Data),
+                           {NewData, To};
+                         {error, Reason} -> {error, Reason}
+                       end
             end;
-    false -> {error, "District is shutdown"}
-  end.
+      false -> {error, "District is shutdown"}
+end .
 
 run_trigger(Trigger, Event, Creature, Creatures) ->
   Self = self(),
