@@ -100,11 +100,14 @@ handle_event(_EventType, _EventContent, Data) ->
   {keep_state, Data}.
 
 under_configuration({call, From}, {connect, Action, To}, Data) ->
-  case maps:is_key(Action, maps:get(connections,Data)) of
-    false -> Connections = maps:put(Action, To, maps:get(connections, Data)),
-            NewData = maps:update(connections, Connections, Data),
-            {keep_state, NewData, {reply, From, ok}};
-    true -> {keep_state, Data, {reply, From, {error, "Action already exists"}}}
+  case is_process_alive(To) of
+    true ->   case maps:is_key(Action, maps:get(connections,Data)) of
+                false -> Connections = maps:put(Action, To, maps:get(connections, Data)),
+                  NewData = maps:update(connections, Connections, Data),
+                  {keep_state, NewData, {reply, From, ok}};
+                true -> {keep_state, Data, {reply, From, {error, "Action already exists"}}}
+              end;
+    false -> {keep_state, Data, {reply, From, {error, "Process not alive anymore"}}}
   end;
 
 under_configuration({call, From}, activate, Data) ->
@@ -152,7 +155,7 @@ active({call, From}, {take_action, CRef, Action}, Data) ->
         false -> {keep_state, Data, {reply, From, {error, "Creature doesn't exist in this district"}}};
         true -> {NewData, To} = creature_leave(CRef, Action, Data),
                 case NewData of
-                  error -> {keep_state, Data, {reply, From, {error, To}}};
+                  error -> {keep_state, Data, {reply, From, {error, ""}}};
                   _ ->  case maps:get(trigger, Data) of
                           none -> void;
                           Trigger -> Trigger(leaving, maps:get(CRef, maps:get(creatures, Data)), maps:to_list(maps:get(creatures, Data)))
@@ -171,10 +174,8 @@ active(EventType, EventContent, Data) ->
   handle_event(EventType, EventContent, Data).
 
 shutting_down(internal, {From, NextPlane}, Data) ->
-  case broadcast_shutdown(maps:to_list(maps:get(connections, Data)), NextPlane, ok) of
-    ok -> {stop_and_reply, normal, {reply, From, ok}};
-    nok -> {stop_and_reply, normal, {reply, From, impossible}}
-  end;
+  Result = broadcast_shutdown(maps:to_list(maps:get(connections, Data)), NextPlane),
+  {stop_and_reply, normal, {reply, From, Result}};
 
 shutting_down({call, From}, activate, Data) ->
   {keep_state, Data, {reply, From, impossible}};
@@ -202,30 +203,33 @@ init(Desc) ->
 callback_mode() -> state_functions.
 
 %% Synchronous Call which should wait until each response
-broadcast_shutdown([], _NextPlane, Result) -> Result;
-broadcast_shutdown([{_Action, To} | Actions ], NextPlane, Result) ->
-  case gen_statem:call(To, {shutdown, NextPlane}) of
-    ok -> Result = ok;
-    _ -> Result = nok
+broadcast_shutdown([], _NextPlane) -> ok;
+broadcast_shutdown([{_Action, To} | Actions ], NextPlane) ->
+  case is_process_alive(To) of
+    true -> gen_statem:call(To, {shutdown, NextPlane});
+    false -> void
   end,
-  broadcast_shutdown(Actions, NextPlane, Result).
+  broadcast_shutdown(Actions, NextPlane).
 
 %% Synchronous Call which should wait until each response
 broadcast_connection([], Result) -> Result;
 broadcast_connection([{_Action, To} | Actions ], _) ->
   case is_process_alive(To) of
     false -> Result1 = impossible;
-    true ->  Result1 = active, gen_statem:call(To, activate_instantion)
+    true ->  gen_statem:call(To, activate_instantion),Result1 = active
   end,
   broadcast_connection(Actions, Result1).
 
 creature_leave(CRef, Action, Data) ->
   To = maps:get(Action, maps:get(connections, Data)),
-  case gen_statem:call(To, {run_action, CRef}) of
-    ok -> NewCreatures = maps:remove(CRef, maps:get(creatures, Data)),
-          NewData = maps:update(creatures, NewCreatures, Data),
-          Return = {NewData, To};
-    {error, Reason} -> Return = {error, Reason}
-  end,
-  Return.
+  case is_process_alive(To) of
+    true ->   case gen_statem:call(To, {run_action, CRef}) of
+                ok -> NewCreatures = maps:remove(CRef, maps:get(creatures, Data)),
+                  NewData = maps:update(creatures, NewCreatures, Data),
+                  {NewData, To};
+                {error, Reason} -> {error, Reason}
+              end;
+    false -> {error, "District is shutdown"}
+  end.
+
 

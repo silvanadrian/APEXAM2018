@@ -23,6 +23,14 @@ district_connect_districts_test() ->
   ?assertEqual(active, district:activate(A)),
   ?assertMatch({error, _}, district:connect(A, c, C)).
 
+district_connect2_districts_test() ->
+  {A,B,C} = create_districts(),
+
+  ?assertEqual(ok, district:connect(A, b, B)),
+  district:shutdown(C, self()),
+  %trying to connect to a terminated district
+  ?assertMatch({error, _}, district:connect(A, c, C)).
+
 district_active_test() ->
   {A,B,C} = create_districts(),
 
@@ -58,9 +66,9 @@ district_enter_test() ->
   district:connect(A, b, B),
   district:connect(A, c, C),
 
-  {BobRef, _} = Bob = {make_ref(), #{}},
+  Bob = {make_ref(), #{}},
   % only can enter if district active
-  ?assertMatch({error, _}, district:enter(A,BobRef)),
+  ?assertMatch({error, _}, district:enter(A,Bob)),
   district:activate(A),
   ?assertEqual(ok, district:enter(A,Bob)).
 
@@ -84,26 +92,54 @@ dsitrict_take_action_test() ->
   % Katniss now not in District A anymore
   ?assertEqual(ok, district:enter(A, Katniss)),
   % But now in district B
-  ?assertMatch({error, _}, district:enter(B, Katniss)).
-
-cheers(_, _Creature, _Creatures) ->
-  io:format("Cheeeeers!~n").
+  ?assertMatch({error, _}, district:enter(B, Katniss)),
+  %try to move Katniss by action again to district begin
+  ?assertMatch({error, _}, district:take_action(A, KatnissRef, b)),
+  district:shutdown(B,self()),
+  ?assertMatch({error, _}, district:take_action(A, KatnissRef, b)),
+  %therefore Katniss is still in A
+  ?assertMatch({error, _}, district:enter(A, Katniss)).
 
 district_shutdown_test() ->
   {A,B,C} = create_districts(),
 
   % Process is available
-  ?assertMatch([_ | _], process_info(A)),
-  ?assertMatch([_ | _], process_info(B)),
-  ?assertMatch([_ | _], process_info(C)),
+  ?assertEqual(true, is_process_alive(A)),
+  ?assertEqual(true, is_process_alive(B)),
+  ?assertEqual(true, is_process_alive(C)),
   district:connect(A, b, B),
   district:connect(A, c, C),
 
   ?assertEqual(ok,district:shutdown(A, self())),
   % after shutdown undefined
-  ?assertEqual(undefined, process_info(A)),
-  ?assertEqual(undefined, process_info(B)),
-  ?assertEqual(undefined, process_info(C)).
+  ?assertEqual(false, is_process_alive(A)),
+  ?assertEqual(false, is_process_alive(B)),
+  ?assertEqual(false, is_process_alive(C)).
+
+district_shutdown2_test() ->
+  {A,B,C} = create_districts(),
+
+  % Process is available
+  ?assertEqual(true, is_process_alive(A)),
+  ?assertEqual(true, is_process_alive(B)),
+  ?assertEqual(true, is_process_alive(C)),
+  district:connect(A, b, B),
+  district:connect(A, c, C),
+
+  ?assertEqual(ok,district:shutdown(B, self())),
+  % after shutdown undefined
+  ?assertEqual(true, is_process_alive(A)),
+  ?assertEqual(false, is_process_alive(B)),
+  ?assertEqual(true, is_process_alive(C)),
+  %since B already shutdown, no need to send it a shutdown message anymore
+  ?assertEqual(ok, district:shutdown(A, self())),
+  %every district should be shutdown now
+  ?assertEqual(false, is_process_alive(A)),
+  ?assertEqual(false, is_process_alive(B)),
+  ?assertEqual(false, is_process_alive(C)).
+
+cheers(_, _Creature, _Creatures) ->
+  io:format("Cheeeeers!~n").
 
 district_trigger_test() ->
   {A,B,C} = create_districts(),

@@ -107,6 +107,7 @@ connects can only be made while district is under configuration in other states 
 
 \subsubsection{trigger}
 Under configuration also a trigger can be added to the server, here always the last one gets taken (overwritting whit the newest one).
+Trigger gets rung whenever a creature enters or leaves a district.
 
 \subsection{Under activation}
 When \texttt{activate} gets called the district and it's neighbors need to get activated, under\_activation is a intermediate state until all neighbors and the district itself are activated.
@@ -116,9 +117,13 @@ In case the neighbors can't be activated (for example when a neighbor got shutdo
 Activate tries to activate all it's neighbors and changes the state of the server to \texttt{active} or back to \texttt{under\_configuration}.
 
 \subsection{Active}
-In the active state, no more new connections can be added 
+In the active state, no more new connections can be added, also no triggers.
+So as soon as a district and it's neighbors is activated, it should only be possible to either run \texttt{get\_description}, \texttt{enter} or \texttt{take\_action} and of course shutting down.
 
 \subsection{Shutting down}
+When shutting down is called all neighbors of a district will be shut down as well and this can be propagated until all districts and it's nieghbors are shutdown.
+
+\subsubsection{shutdown}
 
 \subsection{Territories with cycle}
 
