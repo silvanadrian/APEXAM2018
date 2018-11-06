@@ -136,13 +136,16 @@
 %%  ?assertEqual(false, is_process_alive(B)),
 %%  ?assertEqual(false, is_process_alive(C)).
 %%
-%%district_shutdown_cycle_test() ->
-%%  {A, B, _} = create_districts(),
-%%
-%%  district:connect(A, b, B),
-%%  %district:connect(B, a, A),
-%%  %times out since cycle exists
-%%  district:shutdown(A,self()).
+district_shutdown_cycle_test() ->
+  {A, B, _} = create_districts(),
+
+  district:connect(A, b, B),
+  district:connect(B, a, A),
+  district:connect(A,a,A),
+  %times out since cycle exists
+  district:shutdown(A,self()),
+  ?assertEqual(false, is_process_alive(A)),
+  ?assertEqual(false, is_process_alive(B)).
 
 district_active_cycle_test() ->
   {A, B, C} = create_districts(),
@@ -150,12 +153,11 @@ district_active_cycle_test() ->
   district:connect(A, b, B),
   district:connect(B, a, A),
   district:connect(B, c, C),
+  district:connect(C, c, C),
   district:activate(A),
   Katniss = {make_ref(), #{}},
+  % all connected districts get active
   ?assertMatch(ok, district:enter(C, Katniss)).
-  %?assertMatch(impossible, district:get_description(C)).
-%times out since cycle exists
-  %district:shutdown(A,self()).
 
 %%increment_grade(_, {CreatureRef, Stats}, Creatures) ->
 %%  #{grade := CurGrade} = Stats,

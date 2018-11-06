@@ -195,7 +195,7 @@ active(EventType, EventContent, Data) ->
   handle_event(EventType, EventContent, Data).
 
 shutting_down(internal, {From, NextPlane}, Data) ->
-  Result = broadcast_shutdown(maps:to_list(maps:get(connections, Data)), NextPlane),
+  Result = broadcast_shutdown(maps:to_list(maps:get(connections, Data)),From, NextPlane),
   {stop_and_reply, normal, {reply, From, Result}};
 
 shutting_down({call, From}, activate, Data) ->
@@ -227,23 +227,34 @@ init(Desc) ->
 callback_mode() -> state_functions.
 
 %% Synchronous Call which should wait until each response
-broadcast_shutdown([], _NextPlane) -> ok;
-broadcast_shutdown([{_Action, To} | Actions], NextPlane) ->
+broadcast_shutdown([], _, _NextPlane) -> ok;
+broadcast_shutdown([{_Action, To} | Actions], {Pid, Ref}, NextPlane) ->
   case is_process_alive(To) of
-    true -> gen_statem:call(To, {shutdown, NextPlane});
+    true ->
+      io:fwrite("activate ~p~n, Pid ~p~n, Self ~p~n", [To, Pid, self()]),
+      case term_to_binary(To) == term_to_binary(Pid) of
+        true -> void;
+        false -> case term_to_binary(To) == term_to_binary(self()) of
+                   true -> void;
+                   false -> gen_statem:call(To, {shutdown, NextPlane})
+                 end
+      end;
     false -> void
   end,
-  broadcast_shutdown(Actions, NextPlane).
+  broadcast_shutdown(Actions, {Pid, Ref}, NextPlane).
 
 %% Synchronous Call which should wait until each response
 broadcast_connection([], _, Result) -> Result;
 broadcast_connection([{_Action, To} | Actions], {Pid, Ref} ,_) ->
   case is_process_alive(To) of
     false -> Result1 = impossible;
-    true -> io:fwrite("activate ~p~n, Pid ~p~n", [To, Pid]),
+    true -> io:fwrite("activate ~p~n, Pid ~p~n, Self ~p~n", [To, Pid, self()]),
             Result1 = active,
             case term_to_binary(To) == term_to_binary(Pid) of
-              false -> gen_statem:call(To, activate);
+              false ->  case term_to_binary(To) == term_to_binary(self()) of
+                          true -> void;
+                          false -> gen_statem:call(To, activate)
+                        end;
               true -> void
             end
   end,
