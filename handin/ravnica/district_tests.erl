@@ -2,11 +2,8 @@
 -author("silvan").
 -include_lib("eunit/include/eunit.hrl").
 
-%% API
--export([]).
-
 district_create_test() ->
-  ?assertMatch({ok, _},district:create("Panem")).
+  ?assertMatch({ok, _}, district:create("Panem")).
 
 district_get_description_test() ->
   {ok, P} = district:create("Panem"),
@@ -15,7 +12,7 @@ district_get_description_test() ->
   ?assertEqual({ok, "Panem"}, district:get_description(P)).
 
 district_connect_districts_test() ->
-  {A,B,C} = create_districts(),
+  {A, B, C} = create_districts(),
 
   ?assertEqual(ok, district:connect(A, b, B)),
   district:connect(A, c, C),
@@ -24,7 +21,7 @@ district_connect_districts_test() ->
   ?assertMatch({error, _}, district:connect(A, c, C)).
 
 district_connect2_districts_test() ->
-  {A,B,C} = create_districts(),
+  {A, B, C} = create_districts(),
 
   ?assertEqual(ok, district:connect(A, b, B)),
   district:shutdown(C, self()),
@@ -32,10 +29,10 @@ district_connect2_districts_test() ->
   ?assertMatch({error, _}, district:connect(A, c, C)).
 
 district_active_test() ->
-  {A,B,C} = create_districts(),
+  {A, B, C} = create_districts(),
 
   district:connect(A, c, C),
-  district:shutdown(C,self()),
+  district:shutdown(C, self()),
   % Process C not alive anymore, so A can't be activated
   ?assertEqual(false, is_process_alive(C)),
   ?assertEqual(impossible, district:activate(A)),
@@ -43,7 +40,7 @@ district_active_test() ->
   ?assertEqual(active, district:activate(B)).
 
 district_active2_test() ->
-  {A,_,C} = create_districts(),
+  {A, _, C} = create_districts(),
 
   district:connect(A, c, C),
   % Activate C already, activate A later
@@ -51,29 +48,29 @@ district_active2_test() ->
   ?assertEqual(active, district:activate(A)).
 
 district_options_test() ->
-  {A,B,C} = create_districts(),
+  {A, B, C} = create_districts(),
 
   district:connect(A, b, B),
   district:connect(A, c, C),
 
-  ?assertEqual({ok, [b,c]}, district:options(A)),
+  ?assertEqual({ok, [b, c]}, district:options(A)),
   ?assertEqual({ok, []}, district:options(B)),
   ?assertEqual({ok, []}, district:options(C)).
 
 district_enter_test() ->
-  {A,B,C} = create_districts(),
+  {A, B, C} = create_districts(),
 
   district:connect(A, b, B),
   district:connect(A, c, C),
 
   Bob = {make_ref(), #{}},
   % only can enter if district active
-  ?assertMatch({error, _}, district:enter(A,Bob)),
+  ?assertMatch({error, _}, district:enter(A, Bob)),
   district:activate(A),
-  ?assertEqual(ok, district:enter(A,Bob)).
+  ?assertEqual(ok, district:enter(A, Bob)).
 
 dsitrict_take_action_test() ->
-  {A,B,C} = create_districts(),
+  {A, B, C} = create_districts(),
 
   district:connect(A, b, B),
   district:connect(A, c, C),
@@ -81,11 +78,11 @@ dsitrict_take_action_test() ->
   {KatnissRef, _} = Katniss = {make_ref(), #{}},
   {PeetaRef, _} = {make_ref(), #{}},
   district:activate(A),
-  ?assertEqual(ok, district:enter(A,Katniss)),
+  ?assertEqual(ok, district:enter(A, Katniss)),
   %Action doesn't exist
   ?assertMatch({error, _}, district:take_action(A, KatnissRef, d)),
   % Katniss stays in A
-  ?assertMatch({error, _}, district:enter(A,Katniss)),
+  ?assertMatch({error, _}, district:enter(A, Katniss)),
   %Creature hasn't joined A District
   ?assertMatch({error, _}, district:take_action(A, PeetaRef, b)),
   ?assertMatch({ok, _}, district:take_action(A, KatnissRef, b)),
@@ -95,13 +92,13 @@ dsitrict_take_action_test() ->
   ?assertMatch({error, _}, district:enter(B, Katniss)),
   %try to move Katniss by action again to district begin
   ?assertMatch({error, _}, district:take_action(A, KatnissRef, b)),
-  district:shutdown(B,self()),
+  district:shutdown(B, self()),
   ?assertMatch({error, _}, district:take_action(A, KatnissRef, b)),
   %therefore Katniss is still in A
   ?assertMatch({error, _}, district:enter(A, Katniss)).
 
 district_shutdown_test() ->
-  {A,B,C} = create_districts(),
+  {A, B, C} = create_districts(),
 
   % Process is available
   ?assertEqual(true, is_process_alive(A)),
@@ -110,14 +107,15 @@ district_shutdown_test() ->
   district:connect(A, b, B),
   district:connect(A, c, C),
 
-  ?assertEqual(ok,district:shutdown(A, self())),
+  ?assertEqual(ok, district:shutdown(A, self())),
+  timer:sleep(1000),
   % after shutdown undefined
   ?assertEqual(false, is_process_alive(A)),
   ?assertEqual(false, is_process_alive(B)),
   ?assertEqual(false, is_process_alive(C)).
 
 district_shutdown2_test() ->
-  {A,B,C} = create_districts(),
+  {A, B, C} = create_districts(),
 
   % Process is available
   ?assertEqual(true, is_process_alive(A)),
@@ -126,7 +124,7 @@ district_shutdown2_test() ->
   district:connect(A, b, B),
   district:connect(A, c, C),
 
-  ?assertEqual(ok,district:shutdown(B, self())),
+  ?assertEqual(ok, district:shutdown(B, self())),
   % after shutdown undefined
   ?assertEqual(true, is_process_alive(A)),
   ?assertEqual(false, is_process_alive(B)),
@@ -138,24 +136,61 @@ district_shutdown2_test() ->
   ?assertEqual(false, is_process_alive(B)),
   ?assertEqual(false, is_process_alive(C)).
 
-cheers(_, _Creature, _Creatures) ->
-  io:format("Cheeeeers!~n").
+district_shutdown_cycle_test() ->
+  {A, B, _} = create_districts(),
+
+  district:connect(A, b, B),
+  %district:connect(B, a, A),
+  %times out since cycle exists
+  district:shutdown(A,self()).
+
+district_active_cycle_test() ->
+  {A, B, C} = create_districts(),
+
+  district:connect(A, b, B),
+  %district:connect(B, a, A),
+  district:connect(B, c, C),
+  district:activate(A),
+  %?assertMatch(impossible, district:get_description(C)).
+%times out since cycle exists
+  district:shutdown(A,self()).
+
+increment_grade(_, {CreatureRef, Stats}, Creatures) ->
+  #{grade := CurGrade} = Stats,
+  NewGrade = CurGrade + 4,
+  case NewGrade of
+    12 -> get_grade(CreatureRef, Stats, 12, happy, Creatures);
+    7 -> get_grade(CreatureRef, Stats, 7, okay, Creatures);
+    2 ->  get_grade(CreatureRef, Stats, 2, okay, Creatures);
+    Grade -> get_grade(CreatureRef, Stats, Grade, sad, Creatures)
+  end.
+
+get_grade(Ref, Stats, Grade, Mood, Creatures) ->
+  {{Ref, Stats#{grade := Grade,mood:= Mood}}, Creatures}.
 
 district_trigger_test() ->
-  {A,B,C} = create_districts(),
+  {A, B, C} = create_districts(),
 
   district:connect(A, b, B),
   district:connect(A, c, C),
+  district:connect(B, c, C),
+  district:connect(C, a, A),
 
-  %%?assertEqual(ok, district:trigger(A, fun cheers/3)),
-  district:trigger(A, fun cheers/3),
+  district:trigger(A, fun increment_grade/3),
   district:activate(A),
-  Katniss = {make_ref(), #{}},
-  district:enter(A,Katniss).
+  {Ref, _Stats} = Silvan = {make_ref(), #{grade => 0, mood => sad}},
+  district:enter(A, Silvan),
+  district:take_action(A, Ref, b),
+  district:take_action(B, Ref, c),
+  district:take_action(C, Ref, a),
+  district:take_action(A, Ref, b),
+  %?assertMatch(ok, district:get_description(B)),
+  %Moved Silvan 4 times between A and B
+  ?assertMatch({error,_},district:enter(B,Silvan)).
 
 
 create_districts() ->
   {ok, A} = district:create("A"),
   {ok, B} = district:create("B"),
   {ok, C} = district:create("C"),
-  {A,B,C}.
+  {A, B, C}.

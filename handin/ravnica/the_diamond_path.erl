@@ -17,7 +17,7 @@ a_love_story() ->
   district:activate(A),
 
   % Two players without stats.
-  {BobRef, _}   = Bob   = {make_ref(), #{}},
+  {BobRef, _} = Bob = {make_ref(), #{}},
   {AliceRef, _} = Alice = {make_ref(), #{}},
 
   % Bob and Alice entered the same district:
