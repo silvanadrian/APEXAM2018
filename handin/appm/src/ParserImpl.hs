@@ -2,21 +2,28 @@ module ParserImpl where
 
 -- put your parser in this file. Do not change the types of the following
 -- exported functions
-import Text.Parsec.Char
-import Text.Parsec.Combinator
-import Text.Parsec.Prim
-import Text.Parsec.String
-import Defs
+import           Data.Char
+import           Defs
+import           Text.Parsec.Char
+import           Text.Parsec.Combinator
+import           Text.Parsec.Prim
+import           Text.Parsec.String
 
 parseVersion :: String -> Either ErrMsg Version
-parseVersion str = do
-                --string <- whitespace str
-                --number <- read <$> many1 digit
-                --string <- optional (many1 letter)
-                return $  V [VN  0 ""]
+parseVersion str = case parse (do   res <- (many parseVersionN)
+                                    return res)
+                                              "Parse Error"
+                                              str of
+                                     Left a  -> Left (show a)
+                                     Right b -> Right ((V b))
 
--- skip whitespace
-whitespace = skipMany space
+parseVersionN :: Parser VNum
+parseVersionN = do
+                  number <- read <$> (many1 (satisfy isDigit))
+                  string <- option "" (many letter)
+                  _ <- optional (char '.')
+                  return (VN number string)
+
 
 parseDatabase :: String -> Either ErrMsg Database
 parseDatabase db = case parse (do   res <- (many parsePackage)
@@ -24,7 +31,7 @@ parseDatabase db = case parse (do   res <- (many parsePackage)
                                     return res)
                             "Parse Error"
                             db of
-                   Left a -> Left (show a)
+                   Left a  -> Left (show a)
                    Right b -> Right (DB b)
 
 
@@ -38,40 +45,62 @@ parseDatabase db = case parse (do   res <- (many parsePackage)
 parsePackage :: Parser Pkg
 parsePackage = do
                     _ <- whitespace
-                    _ <- string "package {"
+                    _ <- caseString "package {"
                     pname <- parseName
+                    version <- parseStringVersion
                     description <- parseDescription
-                    version <- parseStringversion
-                    parserTrace "label"
+                    deps <- many parseDeps
                     _ <- string "}"
-                    return Pkg {name = pname,ver = V [VN 0 ""] , desc = description, deps = []}
+                    return Pkg {name = pname,ver = version , desc = description, deps = (zip (repeat pname) deps)}
 
 parseName :: Parser PName
 parseName = do
                _ <- whitespace
-               _ <-  string "name"
+               _ <-  caseString "name"
                _ <- string " "
                name <- many1 letter
                _ <- optional (string ";")
                return (P name)
 
-parseStringversion :: Parser String
-parseStringversion = do
+parseStringVersion :: Parser Version
+parseStringVersion = do
                         _ <- whitespace
-                        _ <- string "version"
+                        _ <- caseString "version"
                         _ <- string " "
-                        version <- many1 letter
+                        version <- many1 (digit <|> letter <|> char '.')
                         optional (string ";")
-                        return version
-                      <|> return ""
-
+                        case parseVersion version of
+                           Right a -> return a
+                           _       -> fail "Version wasn't possible to parse"
+                      <|> return (V [VN 1 ""])
 
 parseDescription :: Parser String
 parseDescription = do
-                    _ <- whitespace
-                    _ <- string "description"
-                    _ <- string " "
-                    description <- many1 letter
-                    _ <- optional (string ";")
-                    return description
+                        _ <- whitespace
+                        _ <- caseString "description"
+                        _ <- string " "
+                        description <- many1 letter
+                        _ <- optional (string ";")
+                        return description
                     <|> return ""
+
+parseDeps :: Parser PConstr
+parseDeps = do
+                _ <- whitespace
+                consts <- caseString "requires" <|> caseString "conflicts"
+                return (False, (V [VN 1 ""]),(V [VN 1 ""]))
+
+-- parseRequires :: Parser PConstr
+-- parseRequires = do
+--                     _ <- whitespace
+
+
+-- skip whitespace
+whitespace = skipMany space
+
+caseChar :: Char -> Parser Char
+caseChar c = char (toLower c) <|> char (toUpper c)
+
+-- Match any case of the characters
+caseString :: String -> Parser String
+caseString s = try (mapM caseChar s) <?> "\"" ++ s ++ "\""

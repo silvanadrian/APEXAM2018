@@ -13,7 +13,8 @@ import Test.Tasty.HUnit
 
 tests = testGroup "Unit Tests"
     [
-        utilities
+        utilities,
+        parser
         --predefined
     ]
 
@@ -70,6 +71,51 @@ utilities = testGroup "Utilities tests"
                     Just [(P "Test", (False, V [VN 1 ""] , V [VN 1 ""] ))]
     ]
 
+
+parser = testGroup "parser"
+    [
+        testCase "parse 3 packages with names" $
+                parseDatabase "package {name foo}package {name foo}package {name foo}" @?=
+                Right db1,
+        testCase "parse package with name and description" $
+                 parseDatabase "package {name foo;description test}" @?=
+                 Right db2,
+        testCase "parse package with name and description" $
+                 parseDatabase "package {name foo;description test}" @?=
+                 Right db2,
+        testCase "parse package with name, description, version" $
+                parseDatabase "package {name foo; version 1.2; description test}" @?=
+                Right db3,
+        testCase "parse package with name, description, version and string" $
+                parseDatabase "package {name foo; version 1.2a; description test}" @?=
+                Right db4,
+        testCase "longer Version" $
+                parseDatabase "package {name foo; version 1a.2a.45; description test}" @?=
+                Right db5,
+        -- Case doesn't matter for keywords
+        testCase "Case insensitiveness" $
+                parseDatabase "pAckAgE {nAmE foo; vErSiOn 1a.2a.45; deSCripTion test}" @?=
+                Right db5,
+        testCase "Case insensitiveness" $
+                parseDatabase "pAckAgE {nAmE foo; vErSiOn 1a.2a.45; deSCripTion test; requires requires requires requires}" @?=
+                Right db5
+    ]
+     where
+       ver = V [VN 1 ""]
+       pname = P "foo"
+       pkg = Pkg pname ver  "" []
+       db1 = DB [pkg,pkg,pkg]
+       pkg2 = Pkg pname ver  "test" []
+       db2 = DB [pkg2]
+       ver2 = V [VN 1 "", VN 2 ""]
+       pkg3 = Pkg pname ver2 "test" []
+       db3 = DB [pkg3]
+       ver3 = V [VN 1 "", VN 2 "a"]
+       pkg4 = Pkg pname ver3 "test" []
+       db4 = DB [pkg4]
+       ver4 = V [VN 1 "a", VN 2 "a", VN 45 ""]
+       pkg5 = Pkg pname ver4 "test" []
+       db5 = DB [pkg5]
 
 
 -- just a sample; feel free to replace with your own structure
