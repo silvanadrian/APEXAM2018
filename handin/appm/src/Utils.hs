@@ -27,4 +27,10 @@ merge [] c2 = Just c2
 --                                                                     Nothing
 --                                                            else
 --                                                                 Nothing
-merge (c1:o1) (c2) = Just (c1 ++ c2)
+merge (pkg:c1) (c2) = case pkgInC2 pkg c2 [] of
+                            Just x -> merge c1 x
+                            Nothing -> Nothing
+
+
+pkgInC2 :: (PName, PConstr) -> Constrs -> Constrs -> Maybe Constrs
+pkgInC2 _ [] x = Just x

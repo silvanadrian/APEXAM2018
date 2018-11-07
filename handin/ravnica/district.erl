@@ -270,8 +270,8 @@ creature_leave(CRef, Action, {_Pid, _}, Data) ->
                          {error, Reason} -> {error, Reason}
                        end
             end;
-      false -> {error, "District is shutdown"}
-end .
+    false -> {error, "District is shutdown"}
+  end.
 
 run_trigger(Trigger, Event, Creature, Creatures) ->
   Self = self(),

@@ -108,7 +108,9 @@ district_shutdown_test() ->
   district:connect(A, c, C),
 
   ?assertEqual(ok, district:shutdown(A, self())),
-  timer:sleep(1000),
+  receive
+    Msg -> ?assertMatch({shutting_down, _, _}, Msg)
+  end,
   % after shutdown undefined
   ?assertEqual(false, is_process_alive(A)),
   ?assertEqual(false, is_process_alive(B)),

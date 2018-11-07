@@ -20,6 +20,7 @@ tests = testGroup "Unit Tests"
 utilities = testGroup "Utilities tests"
     [
         -- Versions
+        testCase "Version 1 <= 1" $ V [VN 1 ""] <= V [VN 1 ""] @?= True,
         testCase "Version 1 <= 2" $ V [VN 1 ""] <= V [VN 2 ""] @?= True,
         testCase "Version 2 <= 1" $ V [VN 2 ""] <= V [VN 1 ""] @?= False,
         testCase "Version 1a <= Verion1z" $ V [VN 1 "a"] <= V [VN 1 "z"] @?= True,
@@ -38,12 +39,6 @@ utilities = testGroup "Utilities tests"
         Just [(P "Test",(False,V [VN 0 ""],V [VN 1 ""])),(P "Test",(False,V [VN 0 ""],V [VN 1 ""]))]
     ]
 
-
-parser = testGroup "Parser Tests"
-    [
-      testCase "tiny" $
-              parseDatabase "package {name foo;}package {name foo}" @?= Right db],
-    ]
 
 
 -- just a sample; feel free to replace with your own structure
