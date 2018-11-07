@@ -123,7 +123,6 @@ under_configuration(EventType, EventContent, Data) ->
   handle_event(EventType, EventContent, Data).
 
 under_activation(internal, From, Data) ->
-  io:fwrite("activate ~p~n", [From]),
   Result = broadcast_connection(maps:to_list(maps:get(connections, Data)), From, active),
   case Result of
     impossible -> {next_state, under_configuration, Data, {reply, From, Result}};
@@ -181,7 +180,7 @@ active({call, From}, {take_action, CRef, Action}, Data) ->
           {NewData, To} = creature_leave(CRef, Action, From, NewDataCreatures),
           case NewData of
             error -> {keep_state, Data, {reply, From, {error, To}}};
-            _ -> {keep_state, NewData, {reply, From, {ok, NewData}}}
+            _ -> {keep_state, NewData, {reply, From, {ok, To}}}
           end
       end;
     false -> {keep_state, Data, {reply, From, {error, "Action doesn't exist"}}}
@@ -231,7 +230,6 @@ broadcast_shutdown([], _, _NextPlane) -> ok;
 broadcast_shutdown([{_Action, To} | Actions], {Pid, Ref}, NextPlane) ->
   case is_process_alive(To) of
     true ->
-      io:fwrite("activate ~p~n, Pid ~p~n, Self ~p~n", [To, Pid, self()]),
       case term_to_binary(To) == term_to_binary(Pid) of
         true -> void;
         false -> case term_to_binary(To) == term_to_binary(self()) of
@@ -248,8 +246,7 @@ broadcast_connection([], _, Result) -> Result;
 broadcast_connection([{_Action, To} | Actions], {Pid, Ref}, _) ->
   case is_process_alive(To) of
     false -> Result1 = impossible;
-    true -> io:fwrite("activate ~p~n, Pid ~p~n, Self ~p~n", [To, Pid, self()]),
-      Result1 = active,
+    true -> Result1 = active,
       case term_to_binary(To) == term_to_binary(Pid) of
         false -> case term_to_binary(To) == term_to_binary(self()) of
                    true -> void;
@@ -260,12 +257,11 @@ broadcast_connection([{_Action, To} | Actions], {Pid, Ref}, _) ->
   end,
   broadcast_connection(Actions, {Pid, Ref}, Result1).
 
-creature_leave(CRef, Action, {Pid, _}, Data) ->
+creature_leave(CRef, Action, {_Pid, _}, Data) ->
   To = maps:get(Action, maps:get(connections, Data)),
   Stats = maps:get(CRef, maps:get(creatures, Data)),
   case is_process_alive(To) of
-    true -> io:fwrite("activate ~p~n, Pid ~p~n, Self ~p~n", [To, Pid, self()]),
-            case term_to_binary(self()) == term_to_binary(To) of
+    true -> case term_to_binary(self()) == term_to_binary(To) of
               true -> {Data, To};
               false -> case gen_statem:call(To, {run_action, CRef, Stats}) of
                          ok -> NewCreatures = maps:remove(CRef, maps:get(creatures, Data)),

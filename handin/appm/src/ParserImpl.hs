@@ -62,7 +62,7 @@ parseStringversion = do
                         _ <- string " "
                         version <- many1 letter
                         optional (string ";")
-                        return version
+                        return parseVersion version
                       <|> return ""
 
 

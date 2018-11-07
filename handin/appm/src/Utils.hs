@@ -27,4 +27,4 @@ merge [] c2 = Just c2
 --                                                                     Nothing
 --                                                            else
 --                                                                 Nothing
-merge (c1) (c2) = Just (c1 ++ c2)
+merge (c1:o1) (c2) = Just (c1 ++ c2)
