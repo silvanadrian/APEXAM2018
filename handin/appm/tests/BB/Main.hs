@@ -15,7 +15,8 @@ tests = testGroup "Unit Tests"
     [
         utilities,
         parser,
-        example
+        example--,
+        --normalize
         --predefined
     ]
 
@@ -125,9 +126,18 @@ parser = testGroup "parser"
                          Right (DB [Pkg {name = P "foo2", ver = V [VN 1 ""], desc = "",
                          deps = [(P "foo",(True,V [VN 3 ""],V [VN 8 "",VN 0 "",VN 0 "a"])),
                          (P "bar",(False,V [VN 3 ""],V [VN 8 ""]))]}]),
+        testCase "Deps different package names" $
+                         parseDatabase "package {name foo2; requires foo < 3, bar >= 8.0.0a; conflicts bar < 3 , foo >= 8}" @?=
+                         Right (DB [Pkg {name = P "foo2", ver = V [VN 1 ""], desc = "",
+                         deps = [(P "foo",(True,V [VN 3 ""],V [VN 8 ""])),
+                         (P "bar",(True,V [VN 3 ""],V [VN 8 "",VN 0 "",VN 0 "a"]))]}]),
+        -- doesn't work to change the lower, greater equal
+        testCase "Low/High changed" $
+                         parseDatabase "package {name foo2; requires foo >=3 , bar < 8.0.0;}" @?=
+                         Left "\"Parse Error\" (line 1, column 38):\nunexpected \",\"\nexpecting space or \"}\"",
          -- Whitespace and other more special things
         testCase "whitespaces pkg and name" $
-        parseDatabase "package     {name        foo2;       requires       foo     <      3    ,      foo    >=      8.0.0a; conflicts bar < 3 , bar >= 8}" @?=
+        parseDatabase "package     {name        foo2;       requires       foo     <      3    ,      foo    >=      8.0.0a; conflicts bar < 3 , bar >= 8   }" @?=
             Right (DB [Pkg {name = P "foo2", ver = V [VN 1 ""], desc = "",
                                      deps = [(P "foo",(True,V [VN 3 ""],V [VN 8 "",VN 0 "",VN 0 "a"])),
                                      (P "bar",(False,V [VN 3 ""],V [VN 8 ""]))]}])
@@ -153,8 +163,7 @@ parser = testGroup "parser"
        pkg6 = Pkg pname2 ver4 "test" consts
        db6 = DB [pkg6]
 
-
-
+-- Parser Example
 example = testGroup "Example DB" [
     testCase "Parse Example DB" $ parseDatabase "package { name foo; version 2.3; description \"The foo application\"; requires bar >= 1.0} package { name bar; version 1.0; description \"The bar library\"} package { name bar; version 2.1; description \"The bar library, new API\";  conflicts baz < 3.4, baz >= 5.0.3} package { name baz; version 6.1.2;}"
     @?=  Right (DB [Pkg {name = P "foo", ver = V [VN 2 "",VN 3 ""],
@@ -167,6 +176,10 @@ example = testGroup "Example DB" [
              deps = [(P "baz",(False,V [VN 3 "",VN 4 ""],V [VN 5 "",VN 0 "",VN 3 ""]))]},
         Pkg {name = P "baz", ver = V [VN 6 "",VN 1 "",VN 2 ""], desc = "", deps = []}])
     ]
+
+-- normalize = testGroup "Normalize" [
+--         testCase "small normalize" $ normalize
+--     ]
 
 -- just a sample; feel free to replace with your own structure
 predefined = testGroup "predefined"

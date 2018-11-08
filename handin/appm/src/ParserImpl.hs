@@ -46,10 +46,11 @@ parsePackage = do
                     version <- try parseStringVersion <|> return (V [VN 1 ""])
                     description <- try parseDescription <|> return ""
                     deps <- many ( choice[try parseRequires,try parseConflicts])
+                    _ <- optional (whitespace)
                     _ <- string "}"
                     return Pkg {name = pname,ver = version , desc = description,
                     -- filter self referential Constraints
-                    deps = filter (\(name, _) -> name /= pname) (concat(deps))}
+                    deps = filter (\(name, _) -> name /= pname) (cleanConst(concat(deps)))}
 
 -- Parse Package name
 parseName :: Parser PName
@@ -144,11 +145,11 @@ parsePConstrH req = do
                       _ <- optional (whitespace)
                       _ <- string ","
                       _ <- optional (whitespace)
-                      _ <- many1 letter
+                      name2 <- many1 letter
                       _ <- whitespace
                       max <- parseVersionHigh
                       case lower <= max of
-                        True -> return [((P name), (req, lower, max))]
+                        True -> return [((P name), (req, lower, maxV)), ((P name2), (req, minV, max))]
                         False -> fail "Error"
 
 parseVersionLow :: Parser Version

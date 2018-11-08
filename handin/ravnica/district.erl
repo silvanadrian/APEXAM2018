@@ -132,6 +132,9 @@ under_activation(internal, From, Data) ->
 under_activation({call, From}, activate, Data) ->
   {keep_state, Data, {reply, From, under_activation}};
 
+under_activation({call, From}, options, Data) ->
+  {keep_state, Data, {reply, From, {ok, maps:keys(maps:get(connections, Data))}}};
+
 %% General Event Handling for state under_activation
 under_activation(EventType, EventContent, Data) ->
   handle_event(EventType, EventContent, Data).
