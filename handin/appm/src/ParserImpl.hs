@@ -35,32 +35,29 @@ parseDatabase db = case parse (do   res <- (many parsePackage)
                    Left a  -> Left (show a)
                    Right b -> Right (DB b)
 
-
--- package {name foo}
--- data Pkg = Pkg {name :: PName,
---                ver :: Version,
---                desc :: String,
---                deps :: Constrs}
--- [Pkg {name = P name, ver = V [VN 1 ""], desc = "", deps = [(P "bar",(True,V [VN 1 ""],V [VN 0 ""]))]}]
-
+-- Parse Packages
 parsePackage :: Parser Pkg
 parsePackage = do
                     _ <- whitespace
-                    _ <- caseString "package {"
+                    _ <- caseString "package"
+                    _ <- whitespace
+                    _ <- string "{"
                     pname <- parseName
-                    version <- parseStringVersion
-                    description <- parseDescription
-                    parserTrace "label"
-                    deps <- many parseDeps
+                    version <- try parseStringVersion <|> return (V [VN 1 ""])
+                    description <- try parseDescription <|> return ""
+                    deps <- many ( choice[try parseRequires, try parseConflicts])
                     _ <- string "}"
-                    return Pkg {name = pname,ver = version , desc = description, deps =  concat(deps)}
+                    return Pkg {name = pname,ver = version , desc = description,
+                    -- filter self referential Constraints
+                    deps = filter (\(name, _) -> name /= pname) (cleanConst(concat(deps)))}
 
+-- Parse Package name
 parseName :: Parser PName
 parseName = do
                _ <- whitespace
                _ <-  caseString "name"
-               _ <- string " "
-               name <- many1 letter
+               _ <- whitespace
+               name <- many1 (letter <|> digit <|> char '-')
                _ <- optional (string ";")
                return (P name)
 
@@ -68,37 +65,79 @@ parseStringVersion :: Parser Version
 parseStringVersion = do
                         _ <- whitespace
                         _ <- caseString "version"
-                        _ <- string " "
+                        _ <- whitespace
                         version <- many1 (digit <|> letter <|> char '.')
                         optional (string ";")
                         case parseVersion version of
                            Right a -> return a
                            _       -> fail "Version wasn't possible to parse"
-                      <|> return (V [VN 1 ""])
 
 parseDescription :: Parser String
 parseDescription = do
                         _ <- whitespace
                         _ <- caseString "description"
-                        _ <- string " "
+                        _ <- whitespace
+                        _ <- char '"'
                         description <- many1 letter
+                        _ <- char '"'
                         _ <- optional (string ";")
                         return description
-                    <|> return ""
 
-parseDeps :: Parser Constrs
-parseDeps = do
-                _ <- whitespace
-                consts <- caseString "requires" <|> caseString "conflicts"
-                _ <- string " "
-                name <- many1 letter
-                _ <- optional (string ";")
-                return [(P name, (False, (V [VN 1 ""]),(V [VN 1 ""])))]
+parseRequires :: Parser Constrs
+parseRequires = do
+                    _ <- whitespace
+                    _ <- caseString "requires"
+                    _ <- whitespace
+                    pconsts <- many (parsePConstr(True))
+                    _ <- optional (string ";")
+                    return (concat(pconsts))
 
-mergeConstrs :: [Constrs] -> Maybe Constrs
-mergeConstrs [] = merge [] []
-mergeConstrs (x:xs) = merge x (concat(xs))
+parseConflicts :: Parser Constrs
+parseConflicts = do
+                    _ <- whitespace
+                    _ <- caseString "conflicts"
+                    _ <- whitespace
+                    pconsts <- many (parsePConstr(False))
+                    _ <- (optional (string ";"))
+                    return (concat(pconsts))
 
+
+parsePConstr :: Bool -> Parser Constrs
+parsePConstr req = do
+                      _ <- whitespace
+                      _ <- optional (string ",")
+                      _ <- optional whitespace
+                      name <- many1 letter
+                      _ <- optional (whitespace)
+                      lower <- option minV (parseVersionLow)
+                      max <- option maxV (parseVersionHigh)
+                      return [((P name), (req, lower, max))]
+
+
+parseVersionLow :: Parser Version
+parseVersionLow = do
+                            _ <- string "<"
+                            _ <- whitespace
+                            version <- many1 (digit <|> letter <|> char '.')
+                            case parseVersion version of
+                                Right a -> return a
+                                _ -> fail "Version wasn't possible to parse"
+
+parseVersionHigh :: Parser Version
+parseVersionHigh = do
+                    _ <- string ">="
+                    _ <- whitespace
+                    version <- many1 (digit <|> letter <|> char '.')
+                    case parseVersion version of
+                            Right a -> return a
+                            _ -> fail "Version wasn't possible to parse"
+
+-- Merges parsed constraints to remove duplicates etc.
+cleanConst :: Constrs -> Constrs
+cleanConst [] = []
+cleanConst (x:xs) = case merge xs [x] of
+                        Nothing -> []
+                        Just a -> a
 
 -- skip whitespace
 whitespace = skipMany space

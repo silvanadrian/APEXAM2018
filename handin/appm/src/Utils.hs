@@ -6,14 +6,17 @@ module Utils where
 import Defs
 
 instance Ord Version where
-  (<=) (V[]) _ = False
-  (<=) (V(_:_)) (V []) = True
-  (<=) (V[VN v1int v1str])  (V[VN v2int v2str]) =
-    if checkVersion v1int v2int v1str v2str then True else False
-  (<=) (V(VN _ _:xs))  (V(VN _ _:ys)) = V(xs) <= V(ys)
-
-checkVersion :: Int -> Int -> String -> String -> Bool
-checkVersion a b c d = a <= b && (c <= d || length(c) <= length(d))
+    (<=) (V []) (V []) = True
+    (<=) (V ((VN _ _):_)) (V []) = False
+    (<=) (V []) (V ((VN _ _):_)) = True
+    (<=) (V ((VN v1int v1str) : vnmbr1)) (V ((VN v2int v2str) : vnmbr2))
+        | v1int < v2int = True
+        | v1int > v2int = False
+        | length(v1str) < length(v2str) = True
+        | length(v1str) > length(v2str) = False
+        | v1str < v2str = True
+        | v1str > v2str = False
+        | otherwise = (V vnmbr1) <= (V vnmbr2)
 
 merge :: Constrs -> Constrs -> Maybe Constrs
 merge [] [] = Just []

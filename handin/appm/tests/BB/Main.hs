@@ -78,31 +78,60 @@ parser = testGroup "parser"
                 parseDatabase "package {name foo}package {name foo}package {name foo}" @?=
                 Right db1,
         testCase "parse package with name and description" $
-                 parseDatabase "package {name foo;description test}" @?=
+                 parseDatabase "package {name foo;description \"test\"}" @?=
                  Right db2,
         testCase "parse package with name and description" $
-                 parseDatabase "package {name foo;description test}" @?=
+                 parseDatabase "package {name foo;description \"test\"}" @?=
                  Right db2,
         testCase "parse package with name, description, version" $
-                parseDatabase "package {name foo; version 1.2; description test}" @?=
+                parseDatabase "package {name foo; version 1.2; description \"test\"}" @?=
                 Right db3,
         testCase "parse package with name, description, version and string" $
-                parseDatabase "package {name foo; version 1.2a; description test}" @?=
+                parseDatabase "package {name foo; version 1.2a; description \"test\"}" @?=
                 Right db4,
         testCase "longer Version" $
-                parseDatabase "package {name foo; version 1a.2a.45; description test}" @?=
+                parseDatabase "package {name foo; version 1a.2a.45; description \"test\"}" @?=
                 Right db5,
+        -- pName hyphen, end hyphen also allowed
+        testCase "Package name hypens" $
+                parseDatabase "package {name 123-wewe-RR-}" @?=
+                Right (DB [Pkg (P "123-wewe-RR-") (V [VN 1 ""])  "" []]),
         -- Case doesn't matter for keywords
         testCase "Case insensitiveness" $
-                parseDatabase "pAckAgE {nAmE foo; vErSiOn 1a.2a.45; deSCripTion test}" @?=
+                parseDatabase "pAckAgE {nAmE foo; vErSiOn 1a.2a.45; deSCripTion \"test\"}" @?=
                 Right db5,
-        testCase "Deps" $
-                parseDatabase "packagE {name foo; version 1a.2a.45; description test; requires foo}" @?=
-                Right db5
+        -- Dependencies Tests
+        testCase "Deps conflicts and requires" $
+                parseDatabase "package {name foo2; version 1a.2a.45; description \"test\"; requires foo < 1.2 , foo >= 3; conflicts bar < 2}" @?=
+                Right db6,
+        testCase "Deps requires range overwrite" $
+                parseDatabase "package {name foo2; requires foo < 3, foo < 8.0.0}" @?=
+                Right (DB [Pkg {name = P "foo2", ver = V [VN 1 ""], desc = "",
+                deps = [(P "foo",(True,V [VN 8 "",VN 0 "",VN 0 ""],V [VN 1000000 ""]))]}]),
+        testCase "Deps self referential" $
+                parseDatabase "package {name foo; requires foo < 3, foo < 8.0.0}" @?=
+                Right (DB [Pkg {name = P "foo", ver = V [VN 1 ""], desc = "", deps = []}]),
+        testCase "Deps requires fixed range" $
+                        parseDatabase "package {name foo2; requires foo < 3; requires foo >= 8.0.0a}" @?=
+                        Right (DB [Pkg {name = P "foo2", ver = V [VN 1 ""], desc = "",
+                        deps = [(P "foo",(True,V [VN 3 ""],V [VN 8 "",VN 0 "",VN 0 "a"]))]}]),
+        testCase "Deps requires fixed range requires and conflicts" $
+                         parseDatabase "package {name foo2; requires foo < 3 , foo >= 8.0.0a; conflicts bar < 3 , bar >= 8}" @?=
+                         Right (DB [Pkg {name = P "foo2", ver = V [VN 1 ""], desc = "",
+                         deps = [(P "foo",(True,V [VN 3 ""],V [VN 8 "",VN 0 "",VN 0 "a"])),
+                         (P "bar",(False,V [VN 3 ""],V [VN 8 ""]))]}]),
+        -- Whitespace and other more special things
+        testCase "whitespaces pkg and name" $
+        parseDatabase "package     {name        foo2;       requires       foo     <      3    ,      foo    >=      8.0.0a; conflicts bar < 3 , bar >= 8}" @?=
+            Right (DB [Pkg {name = P "foo2", ver = V [VN 1 ""], desc = "",
+                                     deps = [(P "foo",(True,V [VN 3 ""],V [VN 8 "",VN 0 "",VN 0 "a"])),
+                                     (P "bar",(False,V [VN 3 ""],V [VN 8 ""]))]}])
+
     ]
      where
        ver = V [VN 1 ""]
        pname = P "foo"
+       pname2 = P "foo2"
        pkg = Pkg pname ver  "" []
        db1 = DB [pkg,pkg,pkg]
        pkg2 = Pkg pname ver  "test" []
@@ -116,6 +145,9 @@ parser = testGroup "parser"
        ver4 = V [VN 1 "a", VN 2 "a", VN 45 ""]
        pkg5 = Pkg pname ver4 "test" []
        db5 = DB [pkg5]
+       consts = [(P "foo",(True,V [VN 1 "", VN 2 ""],V [VN 3 ""])),(P "bar",(False,V [VN 2 ""],V [VN 1000000 ""]))]
+       pkg6 = Pkg pname2 ver4 "test" consts
+       db6 = DB [pkg6]
 
 
 -- just a sample; feel free to replace with your own structure
