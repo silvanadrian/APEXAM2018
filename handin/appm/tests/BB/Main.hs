@@ -65,7 +65,7 @@ utilities = testGroup "Utilities tests"
             [(P "Test", (True, V [VN 4 ""] , V [VN 6 ""] )),  (P "Test2", (False, V [VN 3 "a"], V [VN 9 ""])),
              (P "Test3", (False, V [VN 1 ""], V [VN 10 ""]))]
             [(P "Test", (False, V [VN 3 ""] , V [VN 8 ""] )), (P "Test2", (False, V [VN 3 "z"], V [VN 7 ""]))] @?=
-            Just [(P "Test",(True,V [VN 4 ""],V [VN 6 ""])),(P "Test2",(False,V [VN 3 "z"],V [VN 7 ""]))],
+            Just [(P "Test",(True,V [VN 4 ""],V [VN 6 ""])),(P "Test2",(False,V [VN 3 "z"],V [VN 7 ""])),(P "Test3", (False, V [VN 1 ""], V [VN 10 ""]))],
         testCase "Merge same Version" $ merge
                     [(P "Test", (False, V [VN 1 ""] , V [VN 1 ""] ))] [] @?=
                     Just [(P "Test", (False, V [VN 1 ""] , V [VN 1 ""] ))]
@@ -96,8 +96,8 @@ parser = testGroup "parser"
         testCase "Case insensitiveness" $
                 parseDatabase "pAckAgE {nAmE foo; vErSiOn 1a.2a.45; deSCripTion test}" @?=
                 Right db5,
-        testCase "Case insensitiveness" $
-                parseDatabase "pAckAgE {nAmE foo; vErSiOn 1a.2a.45; deSCripTion test; requires requires requires requires}" @?=
+        testCase "Deps" $
+                parseDatabase "packagE {name foo; version 1a.2a.45; description test; requires foo}" @?=
                 Right db5
     ]
      where

@@ -4,6 +4,7 @@ module ParserImpl where
 -- exported functions
 import           Data.Char
 import           Defs
+import           Utils
 import           Text.Parsec.Char
 import           Text.Parsec.Combinator
 import           Text.Parsec.Prim
@@ -49,9 +50,10 @@ parsePackage = do
                     pname <- parseName
                     version <- parseStringVersion
                     description <- parseDescription
+                    parserTrace "label"
                     deps <- many parseDeps
                     _ <- string "}"
-                    return Pkg {name = pname,ver = version , desc = description, deps = (zip (repeat pname) deps)}
+                    return Pkg {name = pname,ver = version , desc = description, deps =  concat(deps)}
 
 parseName :: Parser PName
 parseName = do
@@ -84,15 +86,18 @@ parseDescription = do
                         return description
                     <|> return ""
 
-parseDeps :: Parser PConstr
+parseDeps :: Parser Constrs
 parseDeps = do
                 _ <- whitespace
                 consts <- caseString "requires" <|> caseString "conflicts"
-                return (False, (V [VN 1 ""]),(V [VN 1 ""]))
+                _ <- string " "
+                name <- many1 letter
+                _ <- optional (string ";")
+                return [(P name, (False, (V [VN 1 ""]),(V [VN 1 ""])))]
 
--- parseRequires :: Parser PConstr
--- parseRequires = do
---                     _ <- whitespace
+mergeConstrs :: [Constrs] -> Maybe Constrs
+mergeConstrs [] = merge [] []
+mergeConstrs (x:xs) = merge x (concat(xs))
 
 
 -- skip whitespace

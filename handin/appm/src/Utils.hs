@@ -20,12 +20,12 @@ merge [] [] = Just []
 merge c1 [] = Just c1
 merge [] c2 = Just c2
 merge (const:c1) (c2) = case constInC2 const c2 [] of
-                            Just x -> merge c1 x
+                            Just x -> merge c1 (x)
                             Nothing -> Nothing
 
 -- Check if Constraint from c1 is in the Constraint list C2
 constInC2 :: (PName, PConstr) -> Constrs -> Constrs -> Maybe Constrs
-constInC2 _ [] x = Just x
+constInC2 const [] x = Just (x ++ [const])
 constInC2 const (c2const:c2tail) x =
                 case fst const == fst c2const of
                     True -> case mergeConst (snd const) (snd c2const) of
