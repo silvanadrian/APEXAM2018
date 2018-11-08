@@ -151,18 +151,6 @@ parsePConstrH req = do
                         True -> return [((P name), (req, lower, max))]
                         False -> fail "Error"
 
-
-parsePConstr :: Bool -> Parser Constrs
-parsePConstr req = do
-                      _ <- whitespace
-                      _ <- optional (string ",")
-                      _ <- optional whitespace
-                      name <- many1 letter
-                      _ <- optional (whitespace)
-                      lower <- option minV (parseVersionLow)
-                      max <- option maxV (parseVersionHigh)
-                      return [((P name), (req, lower, max))]
-
 parseVersionLow :: Parser Version
 parseVersionLow = do
                             _ <- string "<"
