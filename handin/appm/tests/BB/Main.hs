@@ -14,7 +14,8 @@ import Test.Tasty.HUnit
 tests = testGroup "Unit Tests"
     [
         utilities,
-        parser
+        parser,
+        example
         --predefined
     ]
 
@@ -96,23 +97,27 @@ parser = testGroup "parser"
         testCase "Package name hypens" $
                 parseDatabase "package {name 123-wewe-RR-}" @?=
                 Right (DB [Pkg (P "123-wewe-RR-") (V [VN 1 ""])  "" []]),
+        testCase "Package name strings" $
+                parseDatabase "package {name \"123-wewe-RR-\"}" @?=
+                Right (DB [Pkg (P "123-wewe-RR-") (V [VN 1 ""])  "" []]),
         -- Case doesn't matter for keywords
         testCase "Case insensitiveness" $
                 parseDatabase "pAckAgE {nAmE foo; vErSiOn 1a.2a.45; deSCripTion \"test\"}" @?=
                 Right db5,
         -- Dependencies Tests
         testCase "Deps conflicts and requires" $
-                parseDatabase "package {name foo2; version 1a.2a.45; description \"test\"; requires foo < 1.2 , foo >= 3; conflicts bar < 2}" @?=
-                Right db6,
+                parseDatabase "package {name foo2; version 1a.2a.45; description \"test\"; requires foo < 2}" @?= --requires foo < 1.2 , foo >= 3;
+                Right (DB [Pkg {name = P "foo2", ver = V [VN 1 "a",VN 2 "a",VN 45 ""],
+                desc = "test", deps = [(P "foo",(True,V [VN 0 ""],V [VN 2 ""]))]}]),
         testCase "Deps requires range overwrite" $
-                parseDatabase "package {name foo2; requires foo < 3, foo < 8.0.0}" @?=
+                parseDatabase "package {name foo2; requires foo < 3 , foo >= 8.0.0}" @?=
                 Right (DB [Pkg {name = P "foo2", ver = V [VN 1 ""], desc = "",
-                deps = [(P "foo",(True,V [VN 8 "",VN 0 "",VN 0 ""],V [VN 1000000 ""]))]}]),
+                deps = [(P "foo",(True,V [VN 3 ""],V [VN 8 "",VN 0 "",VN 0 ""]))]}]),
         testCase "Deps self referential" $
-                parseDatabase "package {name foo; requires foo < 3, foo < 8.0.0}" @?=
+                parseDatabase "package {name foo; requires foo < 3 , foo >= 8.0.0}" @?=
                 Right (DB [Pkg {name = P "foo", ver = V [VN 1 ""], desc = "", deps = []}]),
         testCase "Deps requires fixed range" $
-                        parseDatabase "package {name foo2; requires foo < 3; requires foo >= 8.0.0a}" @?=
+                        parseDatabase "package {name foo2; requires foo < 3, foo >= 8.0.0a}" @?=
                         Right (DB [Pkg {name = P "foo2", ver = V [VN 1 ""], desc = "",
                         deps = [(P "foo",(True,V [VN 3 ""],V [VN 8 "",VN 0 "",VN 0 "a"]))]}]),
         testCase "Deps requires fixed range requires and conflicts" $
@@ -120,13 +125,12 @@ parser = testGroup "parser"
                          Right (DB [Pkg {name = P "foo2", ver = V [VN 1 ""], desc = "",
                          deps = [(P "foo",(True,V [VN 3 ""],V [VN 8 "",VN 0 "",VN 0 "a"])),
                          (P "bar",(False,V [VN 3 ""],V [VN 8 ""]))]}]),
-        -- Whitespace and other more special things
+         -- Whitespace and other more special things
         testCase "whitespaces pkg and name" $
         parseDatabase "package     {name        foo2;       requires       foo     <      3    ,      foo    >=      8.0.0a; conflicts bar < 3 , bar >= 8}" @?=
             Right (DB [Pkg {name = P "foo2", ver = V [VN 1 ""], desc = "",
                                      deps = [(P "foo",(True,V [VN 3 ""],V [VN 8 "",VN 0 "",VN 0 "a"])),
                                      (P "bar",(False,V [VN 3 ""],V [VN 8 ""]))]}])
-
     ]
      where
        ver = V [VN 1 ""]
@@ -145,10 +149,24 @@ parser = testGroup "parser"
        ver4 = V [VN 1 "a", VN 2 "a", VN 45 ""]
        pkg5 = Pkg pname ver4 "test" []
        db5 = DB [pkg5]
-       consts = [(P "foo",(True,V [VN 1 "", VN 2 ""],V [VN 3 ""])),(P "bar",(False,V [VN 2 ""],V [VN 1000000 ""]))]
+       consts = [(P "foo",(True,V [VN 1 "", VN 2 ""],V [VN 3 ""])),(P "bar",(False,V [VN 0 ""],V [VN 2 ""]))]
        pkg6 = Pkg pname2 ver4 "test" consts
        db6 = DB [pkg6]
 
+
+
+example = testGroup "Example DB" [
+    testCase "Parse Example DB" $ parseDatabase "package { name foo; version 2.3; description \"The foo application\"; requires bar >= 1.0} package { name bar; version 1.0; description \"The bar library\"} package { name bar; version 2.1; description \"The bar library, new API\";  conflicts baz < 3.4, baz >= 5.0.3} package { name baz; version 6.1.2;}"
+    @?=  Right (DB [Pkg {name = P "foo", ver = V [VN 2 "",VN 3 ""],
+             desc = "The foo application",
+             deps = [(P "bar",(True,V [VN 1 "",VN 0 ""],V [VN 1000000 ""]))]},
+        Pkg {name = P "bar", ver = V [VN 1 "",VN 0 ""],
+             desc = "The bar library", deps = []},
+        Pkg {name = P "bar", ver = V [VN 2 "",VN 1 ""],
+             desc = "The bar library, new API",
+             deps = [(P "baz",(False,V [VN 3 "",VN 4 ""],V [VN 5 "",VN 0 "",VN 3 ""]))]},
+        Pkg {name = P "baz", ver = V [VN 6 "",VN 1 "",VN 2 ""], desc = "", deps = []}])
+    ]
 
 -- just a sample; feel free to replace with your own structure
 predefined = testGroup "predefined"

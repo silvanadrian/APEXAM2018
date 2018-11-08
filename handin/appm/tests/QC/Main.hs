@@ -21,6 +21,7 @@ instance Arbitrary Database where
 prop_install_c' db p = install_c' db p (install db p)
   
 tests = testGroup "QC tests"
-          [testProperty "simple" $ prop_install_c']
+          [--testProperty "simple" $ prop_install_c'
+          ]
 
 main = defaultMain tests

@@ -45,11 +45,11 @@ parsePackage = do
                     pname <- parseName
                     version <- try parseStringVersion <|> return (V [VN 1 ""])
                     description <- try parseDescription <|> return ""
-                    deps <- many ( choice[try parseRequires, try parseConflicts])
+                    deps <- many ( choice[try parseRequires,try parseConflicts])
                     _ <- string "}"
                     return Pkg {name = pname,ver = version , desc = description,
                     -- filter self referential Constraints
-                    deps = filter (\(name, _) -> name /= pname) (cleanConst(concat(deps)))}
+                    deps = filter (\(name, _) -> name /= pname) (concat(deps))}
 
 -- Parse Package name
 parseName :: Parser PName
@@ -57,7 +57,9 @@ parseName = do
                _ <- whitespace
                _ <-  caseString "name"
                _ <- whitespace
+               _ <- optional (char '"')
                name <- many1 (letter <|> digit <|> char '-')
+               _ <- optional (char '"')
                _ <- optional (string ";")
                return (P name)
 
@@ -72,23 +74,39 @@ parseStringVersion = do
                            Right a -> return a
                            _       -> fail "Version wasn't possible to parse"
 
+
+escape :: Parser String
+escape = do
+    d <- char '\\'
+    c <- oneOf "\\\"0nrvtbf" -- all the characters which can be escaped
+    return [d, c]
+
+nonEscape :: Parser Char
+nonEscape = noneOf "\\\"\0\n\r\v\t\b\f"
+
+character :: Parser String
+character = fmap return nonEscape <|> escape
+
 parseDescription :: Parser String
 parseDescription = do
                         _ <- whitespace
                         _ <- caseString "description"
                         _ <- whitespace
-                        _ <- char '"'
-                        description <- many1 letter
-                        _ <- char '"'
+                        char '"'
+                        description <- many character
+                        char '"'
                         _ <- optional (string ";")
-                        return description
+                        return $ concat(description)
 
 parseRequires :: Parser Constrs
 parseRequires = do
                     _ <- whitespace
                     _ <- caseString "requires"
                     _ <- whitespace
-                    pconsts <- many (parsePConstr(True))
+                    pconsts <- many (choice[try(parsePConstrH(True)),
+                                            try (parseSConstrL(True)),
+                                            try(parseSConstrH(True))
+                                            ])
                     _ <- optional (string ";")
                     return (concat(pconsts))
 
@@ -97,9 +115,41 @@ parseConflicts = do
                     _ <- whitespace
                     _ <- caseString "conflicts"
                     _ <- whitespace
-                    pconsts <- many (parsePConstr(False))
+                    pconsts <- many (choice[try(parsePConstrH(False)),
+                                            try (parseSConstrL(False)),
+                                            try(parseSConstrH(False))
+                                            ])
                     _ <- (optional (string ";"))
                     return (concat(pconsts))
+
+parseSConstrL :: Bool -> Parser Constrs
+parseSConstrL req = do
+                      name <- many1 letter
+                      _ <- whitespace
+                      version <-  parseVersionLow
+                      return [((P name), (req, minV, version))]
+
+parseSConstrH :: Bool -> Parser Constrs
+parseSConstrH req = do
+                      name <- many1 letter
+                      _ <- whitespace
+                      version <-  parseVersionHigh
+                      return [((P name), (req, version, maxV))]
+
+parsePConstrH :: Bool -> Parser Constrs
+parsePConstrH req = do
+                      name <- many1 letter
+                      _ <- whitespace
+                      lower <-  parseVersionLow
+                      _ <- optional (whitespace)
+                      _ <- string ","
+                      _ <- optional (whitespace)
+                      _ <- many1 letter
+                      _ <- whitespace
+                      max <- parseVersionHigh
+                      case lower <= max of
+                        True -> return [((P name), (req, lower, max))]
+                        False -> fail "Error"
 
 
 parsePConstr :: Bool -> Parser Constrs
@@ -112,7 +162,6 @@ parsePConstr req = do
                       lower <- option minV (parseVersionLow)
                       max <- option maxV (parseVersionHigh)
                       return [((P name), (req, lower, max))]
-
 
 parseVersionLow :: Parser Version
 parseVersionLow = do
@@ -138,6 +187,12 @@ cleanConst [] = []
 cleanConst (x:xs) = case merge xs [x] of
                         Nothing -> []
                         Just a -> a
+
+
+isPrintChar :: Char -> Bool
+isPrintChar c
+  | ord c >= 32 && ord c <= 126 = True
+  | otherwise = False
 
 -- skip whitespace
 whitespace = skipMany space
