@@ -26,7 +26,7 @@ create_connections(Pid, [{Atom, To} | Connections], Result) ->
   NewResult = lists:append([Pid2], Result),
   create_connections(Pid, Connections, NewResult).
 
-%%#{-4 => [{ejbdi,-1},{jennby,16}], 6 => [{fa,-12},{ta,-17},{keyj,-15}], 8 => [{w,-17}]}
+%% Example #{-4 => [{ejbdi,-1},{jennby,16}], 6 => [{fa,-12},{ta,-17},{keyj,-15}], 8 => [{w,-17}]}
 %% create all district in a map and conec
 setup_territory(Map) ->
   create_districts(maps:to_list(Map), []).

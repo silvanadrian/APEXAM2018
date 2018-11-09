@@ -73,11 +73,28 @@ handle_event({call, From}, activate, Data) ->
   {next_state, active, Data, {reply, From, ok}};
 
 handle_event({call, From}, {run_action, CRef, Stats}, Data) ->
+  Creatures = maps:get(creatures, Data),
   case maps:is_key(CRef, maps:get(creatures, Data)) of
     true -> {keep_state, Data, {reply, From, {error, "Creature is already in this District"}}};
-    false -> NewCreatures = maps:put(CRef, Stats, maps:get(creatures, Data)),
-      NewData = maps:update(creatures, NewCreatures, Data),
-      {keep_state, NewData, {reply, From, ok}}
+    false -> case maps:get(trigger, Data) of
+                     none -> Creature1 = none, Creatures1 = none;
+                     Trigger -> case run_trigger(Trigger, entering, {CRef, Stats}, Creatures) of
+                                  {error, _} -> Creature1 = none, Creatures1 = none;
+                                  {Creature1, Creatures1} -> {Creature1, Creatures1}
+                                end
+             end,
+             case {Creature1, Creatures1} of
+               {none, none} ->           case maps:get(trigger, Data) of
+                                           none -> NewCreatures = maps:put(CRef, Stats, maps:get(creatures, Data)),
+                                                   NewData = maps:update(creatures, NewCreatures, Data),
+                                                   {keep_state, NewData, {reply, From, ok}};
+                                           _ -> {keep_state, Data, {reply, From, {error, "Trigger didn't run"}}}
+                                         end;
+               {{Ref1,Stats1}, _} ->
+                   NewCreatures = maps:put(Ref1, Stats1, maps:get(creatures, Data)),
+                   NewData = maps:update(creatures, NewCreatures, Data),
+                   {keep_state, NewData, {reply, From, ok}}
+             end
   end;
 
 % Handle Enter on other states
@@ -141,7 +158,7 @@ under_activation(EventType, EventContent, Data) ->
 
 active({call, From}, {enter, {Ref, Stats}}, Data) ->
   case maps:is_key(Ref, maps:get(creatures, Data)) of
-    true -> {keep_state, Data, {reply, From, {error, "Creture is already in this District"}}};
+    true -> {keep_state, Data, {reply, From, {error, "Creature is already in this District"}}};
     false -> Creatures = maps:get(creatures, Data),
       case maps:get(trigger, Data) of
         none -> Creature1 = none, Creatures1 = none;
@@ -151,12 +168,17 @@ active({call, From}, {enter, {Ref, Stats}}, Data) ->
                    end
       end,
       case {Creature1, Creatures1} of
-        {none, none} -> NewCreatures = maps:put(Ref, Stats, maps:get(creatures, Data)),
-          NewData = maps:update(creatures, NewCreatures, Data);
+        {none, none} ->
+          case maps:get(trigger, Data) of
+            none -> NewCreatures = maps:put(Ref, Stats, maps:get(creatures, Data)),
+                    NewData = maps:update(creatures, NewCreatures, Data),
+                  {keep_state, NewData, {reply, From, ok}};
+            _ -> {keep_state, Data, {reply, From, {error, "Trigger didn't run"}}}
+          end;
         {{Ref1, Stats1}, NewCreatures1} -> NewCreatures = maps:put(Ref1, Stats1, maps:from_list(NewCreatures1)),
-          NewData = maps:update(creatures, NewCreatures, Data)
-      end,
-      {keep_state, NewData, {reply, From, ok}}
+          NewData = maps:update(creatures, NewCreatures, Data),
+          {keep_state, NewData, {reply, From, ok}}
+      end
   end;
 
 active({call, From}, {take_action, CRef, Action}, Data) ->
@@ -176,14 +198,22 @@ active({call, From}, {take_action, CRef, Action}, Data) ->
                     end
                 end,
           case {Creature1, Creatures1} of
-            {none, none} -> NewDataCreatures = Data;
+            {none, none} ->
+              case maps:get(trigger, Data) of
+                none -> {NewData, To} = creature_leave(CRef, Action, From, Data),
+                        case NewData of
+                          error -> {keep_state, Data, {reply, From, {error, To}}};
+                          _ -> {keep_state, NewData, {reply, From, {ok, To}}}
+                        end;
+                _ -> {keep_state, Data, {reply, From, {error, "Trigger"}}}
+              end;
             {{Ref, Stats}, _} -> NewCreatures = maps:put(Ref, Stats, maps:get(creatures, Data)),
-              NewDataCreatures = maps:update(creatures, NewCreatures, Data)
-          end,
-          {NewData, To} = creature_leave(CRef, Action, From, NewDataCreatures),
-          case NewData of
-            error -> {keep_state, Data, {reply, From, {error, To}}};
-            _ -> {keep_state, NewData, {reply, From, {ok, To}}}
+              NewDataCreatures = maps:update(creatures, NewCreatures, Data),
+              {NewData, To} = creature_leave(CRef, Action, From, NewDataCreatures),
+              case NewData of
+                error -> {keep_state, Data, {reply, From, {error, To}}};
+                _ -> {keep_state, NewData, {reply, From, {ok, To}}}
+              end
           end
       end;
     false -> {keep_state, Data, {reply, From, {error, "Action doesn't exist"}}}

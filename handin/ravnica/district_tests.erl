@@ -146,6 +146,18 @@ district_shutdown_cycle_test() ->
   ?assertEqual(false, is_process_alive(A)),
   ?assertEqual(false, is_process_alive(B)).
 
+district_shutdown_cycle1_test() ->
+  {A, B, C} = create_districts(),
+
+  district:connect(A, b, B),
+  district:connect(B, c, C),
+  % fails if active
+  %district:connect(C, a, A),
+  %times out since cycle exists
+  district:shutdown(A,self()),
+  ?assertEqual(false, is_process_alive(A)),
+  ?assertEqual(false, is_process_alive(B)).
+
 district_active_cycle_test() ->
   {A, B, C} = create_districts(),
 
@@ -161,7 +173,7 @@ district_active_cycle_test() ->
 
 increment_grade(_, {CreatureRef, Stats}, Creatures) ->
   #{grade := CurGrade} = Stats,
-  NewGrade = CurGrade + 4,
+  NewGrade = CurGrade + 3,
   case NewGrade of
     12 -> get_grade(CreatureRef, Stats, 12, happy, Creatures);
     7 -> get_grade(CreatureRef, Stats, 7, okay, Creatures);
@@ -187,11 +199,58 @@ district_trigger_test() ->
   ?assertMatch({ok, _}, district:take_action(A, Ref, b)),
   ?assertMatch({ok, _},district:take_action(B, Ref, a)),
   ?assertMatch({ok, _}, district:take_action(A, Ref, b)),
-  ?assertMatch({ok, _}, district:take_action(B, Ref, a)),
   ?assertMatch({ok, _}, district:get_description(B)),
-  %Moved Silvan 4 times between A and B
-  ?assertMatch({error,_},district:enter(A,Silvan)).
+  %Moved Silvan 4 times(entering/leaving) between A and B
+  ?assertMatch({error, _},district:enter(B,Silvan)).
 
+district_trigger1_test() ->
+  {A, B, C} = create_districts(),
+
+  district:connect(A, b, B),
+  district:connect(A, c, C),
+  district:connect(C, a, A),
+  district:connect(B, a, A),
+
+  % atom function
+  district:trigger(A, abc),
+  district:activate(A),
+  Silvan = {make_ref(), #{grade => 0, mood => sad}},
+  ?assertMatch({error, _}, district:enter(A, Silvan)).
+
+cheers(_, Creature, Creatures) ->
+  timer:sleep(3000),
+  {Creature, Creatures}.
+
+district_trigger2_test() ->
+  {A, B, C} = create_districts(),
+
+  district:connect(A, b, B),
+  district:connect(A, c, C),
+  district:connect(C, a, A),
+  district:connect(B, a, A),
+
+  % atom function
+  district:trigger(A, fun cheers/3),
+  district:activate(A),
+  Silvan = {make_ref(), #{grade => 0, mood => sad}},
+  ?assertMatch({error, _}, district:enter(A, Silvan)).
+
+district_trigger3_test() ->
+  {A, B, C} = create_districts(),
+
+  district:connect(A, b, B),
+  district:connect(A, a, A),
+  district:connect(A, c, C),
+  district:connect(C, a, A),
+  district:connect(B, a, A),
+  {Ref, _} = Silvan = {make_ref(), #{grade => 0, mood => sad}},
+  % atom function
+
+  ?assertMatch(ok, district:trigger(A, fun cheers/3)),
+  district:activate(A),
+  ?assertMatch(ok, district:enter(B, Silvan)),
+  ?assertEqual({error, "Trigger didn't run"}, district:take_action(B,Ref,a)),
+  ?assertEqual({error, "Creature doesn't exist in this district"}, district:take_action(A,Ref,b)).
 
 create_districts() ->
   {ok, A} = district:create("A"),

@@ -15,8 +15,7 @@ tests = testGroup "Unit Tests"
     [
         utilities,
         parser,
-        example,
-        normalizeTests
+        example
         --predefined
     ]
 
@@ -77,7 +76,7 @@ utilities = testGroup "Utilities tests"
 parser = testGroup "parser"
     [
         testCase "parse 3 packages with names" $
-                parseDatabase "package {name foo}package {name foo}package {name foo}" @?=
+                parseDatabase "package {name foo} --comment\n package {name foo}package {name foo}" @?=
                 Right db1,
         testCase "parse package with name and description" $
                  parseDatabase "package {name foo;description \"test\"}" @?=
@@ -91,6 +90,9 @@ parser = testGroup "parser"
         testCase "parse package with name, description, version and string" $
                 parseDatabase "package {name foo; version 1.2a; description \"test\"}" @?=
                 Right db4,
+        testCase "longer Version" $
+                parseDatabase "package {name foo; version 1a.2a.45; description \"test\"}" @?=
+                Right db5,
         testCase "longer Version" $
                 parseDatabase "package {name foo; version 1a.2a.45; description \"test\"}" @?=
                 Right db5,
@@ -203,14 +205,6 @@ example = testGroup "Example DB" [
              desc = "The bar library, new API",
              deps = [(P "baz",(False,V [VN 3 "",VN 4 ""],V [VN 5 "",VN 0 "",VN 3 ""]))]},
         Pkg {name = P "baz", ver = V [VN 6 "",VN 1 "",VN 2 ""], desc = "", deps = []}])
-    ]
-
-normalizeTests = testGroup "Normalize" [
-        testCase "empty Database" $ normalize (DB []) @?= Right (DB [])
-
--- DB [Pkg {name = P "foo", ver = V [VN 2 "",VN 3 ""],
--- desc = "The foo application",
--- deps = [(P "bar",(True,V [VN 1 "",VN 0 ""],V [VN 1000000 ""]))]}]
     ]
 
 -- just a sample; feel free to replace with your own structure

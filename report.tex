@@ -36,8 +36,7 @@ breaklines}
 
 \begin{document}
 
-\title{Advanced Programming}
-\subtitle{Exam 2018}
+\title{Advanced Programming Exam 2018}
 
 \author{Exam Number: 95, Username: zlp432}
 \date{\today}
@@ -61,6 +60,7 @@ Especially ending up when merging only with same package and the different ones 
 The Utility functions seems to work as intended, as least I was able to reuse them in the parser, and thanks to lots of unit tests to both functions I do believe they work as they should.
 
 \section{Parsing appm databases}
+The Code for this task is attached in the appendix \ref{appendix:question1-2}.
 \subsection{Choice of parser library}
 I implemented the Parser for appm in parsec, mostly out of this reason:
 \begin{itemize}
@@ -70,34 +70,77 @@ I implemented the Parser for appm in parsec, mostly out of this reason:
 
 I did end up using \textbf{try} quite a lot, which wasn't my intention at all but with the presented Grammar I haven't found a better solution and overall the parser works more or less.
 
-\subsection{Grammar}
-I decided to make a more strict choice about the Clauses, by parsing them in a fixed ordering (name first etc.), I didn't find much of a better solution for that grammar.
+\subsection{Transforming Grammar}
+I decided to make a more strict choice about the Clauses, by parsing them in a fixed ordering (name first etc.), I didn't find much of a better solution for that grammar (making it more dynamic and of course also reduced the complexity of the parser).
+The existing grammar has some ambiguities (could have had many names, description etc.), for that case I transformed the Grammar a little so that it matches more to my idea.
+So that Name comes first (at least once) and then one after the other follows or is set to empty.
+Technically Version, Description etc. could show up more then once but those cases are not handled in the Parser
+\begin{minted}{bnf}
+Database ::= \epsilon
+			| Package Database
+Package ::= 'package' '{' Clauses '}'
+Clauses ::= \epsilon
+			| Clause
+			| Clauses ';' Clauses
+Clause ::= 'name' PName Version
+Version ::= \epsilon
+			| 'version' Version 
+			| Description
+Description ::= \epsilon
+				| 'description' String 
+				| Constraints
+Constraints ::= \epsilon	
+			|'requires' PList
+			|'conflicts' PList									
 
+PList ::= 	PItem
+		| PList ‘,’ PItem
+PItem ::= PName
+		| PName ‘>=’ Version 
+		| PName ‘<’ Version
+Version ::= (see Text)
+PName ::= (see Text)
+String ::=(see Text)		
+\end{minted}
 
+Since I don't know what exactly will follow after a Name I use try in all the following calls of parsing one of the clauses (Version etc.), this way I can skip one or the other except for the name.
 
 \subsection{Assessment}
-I did quite a few unit tests for the parser (including failing ones), since not everything ended up to be working or there was just not enough time left to fixing all the bugs which showed up.
-%\subsection{Transform Grammar}
-%The existing grammar has some ambiguities, like allowing many names, version etc. which now transformed to only allow once
-%\begin{minted}{bnf}
-%Database ::= \epsilon
+\subsubsection{Scope of Test Cases}
+I did quite a few unit tests for the parser (including failing ones), since not everything ended up to be working or there was just not enough time left to fix all the bugs which showed up.
+Overall I tried to test as many cases as possible, which I think I succeeded in because I did find some bugs throughout the development process thanks to the testing.
 
-%\end{minted}
+\subsubsection{Correctness}
+The Solution is far from perfect, but it was able to parse the example intro to the preferred outcome.
+There are a few bugs on of which is the ordering of requires and conflicts, so in case I want to parse \textbf{requires bar >= 3, bar < 2}, this would end in an error since the case of having the greater then version in the first place won't work all the other cases work.
+Also adding a comment \textbf{--comment} after the end of the last package doesn't work.
+Beside those bugs, there are of course also other ways to get the parser to fail.
+For example only by changing the ordering of clauses and lots of other things.
+So for a well-formed package (ordering is right, only one clause of name, version etc.) the parser works, in lots of other cases the parser might fail.
 
-\section{Solver}
+\subsubsection{Code Quality}
+I do believe the code is more or less easy to read, I tried to put the things together which belong together which should help understanding it easier.
+But nonetheless I'm not satisfied with how many tries I needed to solve the task and also the left over bugs which I wasn't able to fix until the end of the exam.
+On the other hand I'm also quite happy that was I able to put some more functionality into the parser as I thought beforehand I would do, like the string parsing, caseString (keywords can have any case) etc.
 
-\section{Earls of Ravnica}
-The code for this task can be found in Appendix
-\subsection{Solution}
+\section{Solving appm constraints}
+skipped since time ran out
+\section{Testing appm properties}
+skipped since time ran out
+
+\section{The district module}
+The code for this task can be found in Appendix \ref{appendix:question2-1}
 \subsection{Implementation}
 The earls of Ravnica can be seen as a state machine for which I chose to use gen\_statem.
 The following states exist:
 \begin{itemize}
-	\item Under Configuration
-	\item Under Activation
-	\item Active
-	\item Shutting down
+	\item \textbf{Under Configuration} The initial state of every district, connections can be created, the description called and so on
+	\item \textbf{Under Activation} As soon as someone calls \textbf{activate}, the server will switch to this intermediate state until all it's neighbors (connections) are active
+	\item \textbf{Active} Server is active and Players can enter, take\_actions and so on
+	\item \textbf{Shutting down} Intermediate state before being fully shut down, since all neighbors also have to be shutdown
 \end{itemize}
+
+So a District Server can go through following states:
 
 \begin{figure}[!htb]
 	\includegraphics{images/ravnica}
@@ -110,44 +153,50 @@ The Data structure I used to implement Ravnica consists of a map with following 
 	\item \textbf{description} Saves the description which gets saved when starting a server
 	\item \textbf{connections} Map for Handling the connections from one District to an other
 	\item \textbf{creatures} Map for handling all the entered/active creatures on a Server
-	\item \textbf{trigger} Set a trigger for a district
+	\item \textbf{trigger} Set a trigger for a district, which gets called when a creature is leaving or entering a district
 \end{itemize}
 
-\subsection{All states}
-Messages which get accepted in all states.
-\subsubsection{get\_description}
-Gets the description \texttt{Desc} which gets set on create of a District.
+\subsection{States}
+In the end I ended up with the described states in which a district can be in.
+Each state only accepts a number of messages (for example, enter is not allowed in some states and so on),
+all unhandled Messages (Technically can send any kind of message when the PID is known) will be ignored but the server will be keep going.
+A maybe new thing I did for the exam is using a internal next\_state state change, to be able to switch to those intermediate states when needed.
 
-\subsection{Under configuration}
-As soon as a Server started it is in the under\_configuration state.
-\subsubsection{connect}
-Connects 2 District with a Action, by saving it in the \texttt{connections} map, 
-connects can only be made while district is under configuration in other states an error gets returned.
+\subsection{Communication}
+All communication between the districts and to the district is synchronous, this mostly for actually know what kind of state the other neighbors have and I do want to know when every neighbors shutting down or that there is an issue with that.
 
-\subsubsection{trigger}
-Under configuration also a trigger can be added to the server, here always the last one gets taken (overwritting whit the newest one).
-Trigger gets rung whenever a creature enters or leaves a district.
+\subsection{Cycles}
+My solution can handle cycles, but it's a very basic solution which definitely won't hold for all kind of cycles.
+Even though I did a test on cycles (self cycles and cycles with neighbors), which was succesfully.
+In the end my Solution is about checking the \textbf{From} and \textbf{To} PID in case they are the same don't end the message further otherwise we end up in a never ending loop.
+Same for when the PID matches with the own PID of the server (self cycles), \textbf{self()} and \textbf{To} are the same.
+\begin{figure}[!htb]
+\center
+\includegraphics[width=\textwidth]{images/cycles}
+	\caption{Showcasing the cycles}
+\end{figure}
 
-\subsection{Under activation}
-When \texttt{activate} gets called the district and it's neighbors need to get activated, under\_activation is a intermediate state until all neighbors and the district itself are activated.
-In case the neighbors can't be activated (for example when a neighbor got shutdown), then the server goes back to the state of under\_configuration.
+So this very basic solution will fail for bigger cycles, because here the shutdown or activate message won't be sent from the original district (on which the activate or shutdown got called), so can't be checked according to the \textbf{To} and \textbf{From} PID anymore.
 
-\subsubsection{activate}
-Activate tries to activate all it's neighbors and changes the state of the server to \texttt{active} or back to \texttt{under\_configuration}.
+\begin{figure}[!htb]
+	\center
+	\includegraphics[width=0.5\textwidth]{images/fail_cycle}
+	\caption{Example of a failing cycle}
+\end{figure}
 
-\subsection{Active}
-In the active state, no more new connections can be added, also no triggers.
-So as soon as a district and it's neighbors is activated, it should only be possible to either run \texttt{get\_description}, \texttt{enter} or \texttt{take\_action} and of course shutting down.
+\subsection{Triggers}
+My Solution does support triggers and according to my tests they seem to work 
 
-\subsection{Shutting down}
-When shutting down is called all neighbors of a district will be shut down as well and this can be propagated until all districts and it's neighbors are shutdown.
+\subsection{Assassement}
 
-\subsubsection{shutdown}
-
-\subsection{Territories with cycle}
-
-
-\subsection{Assassment}
+\subsubsection{Scope of Test Cases}
+\subsubsection{Correctness}
+\subsubsection{Code Quality}
+\section{QuickCheck district}
+The code for this task can be found in Appendix \ref{appendix:tests}
+\subsection{Territory Generator}
+I did write a Generator for \textbf{territory/0} but I wasn't able to write the Properties for activate and take\_action, since the time ran out.
+So I only started on this task but wasn't able to finish it totally.
 %\section{Solution}
 %\subsection{Files}
 %\subsection{Running the programm}
@@ -183,5 +232,7 @@ When shutting down is called all neighbors of a district will be shut down as we
 \inputminted{haskell}{handin/appm/tests/BB/Main.hs}
 \subsection{Question 2.1}
 \inputminted{erlang}{handin/ravnica/district_tests.erl}
+\subsection{Question 2.2}
+\inputminted{erlang}{handin/ravnica/district_qc.erl}
 \label{appendix:tests}
 \end{document}

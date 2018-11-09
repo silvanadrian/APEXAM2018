@@ -6,9 +6,6 @@ module SolverImpl where
 import Defs
 import Utils
 
-
-
-
 normalize :: Database -> Either String Database
 normalize = undefined
 -- No More time for that

@@ -24,8 +24,10 @@ parseVersion str =
 parseVersionN :: Parser VNum
 parseVersionN = do
   number <- read <$> (many1 (satisfy isDigit))
+  -- Number has to be lower then 1 M
   guard (number < 1000000)
   string <- many lower
+  -- Not more then 4 lowercase characters
   guard (length(string) <= 4)
   _ <- optional (char '.')
   return (VN number string)
@@ -60,20 +62,6 @@ parsePackage = do
       , deps = filter (\(name, _) -> name /= pname) (cleanConst (concat (deps)))
       }
 
-
--- Accept 2 "" return "
-parseHighComma :: Parser Char
-parseHighComma = do
-                    _ <- char '"'
-                    _ <- char '"'
-                    return '"'
-
-parseHighComma2 :: Parser [Char]
-parseHighComma2 = do
-                    _ <- char '"'
-                    _ <- char '"'
-                    return ['"']
-
 -- Parse Package name
 parseName :: Parser PName
 parseName = do
@@ -93,18 +81,6 @@ parseStringVersion = do
   case parseVersion version of
     Right a -> return a
     _ -> fail "Version wasn't possible to parse"
-
-escape :: Parser String
-escape = do
-  d <- char '\\'
-  c <- oneOf "\\\"0nrvtbf" -- all the characters which can be escaped
-  return [d, c]
-
-nonEscape :: Parser Char
-nonEscape = noneOf "\\\"\0\n\r\v\t\b\f"
-
-character :: Parser String
-character = fmap return nonEscape <|> escape
 
 parseDescription :: Parser String
 parseDescription = do
@@ -191,11 +167,20 @@ cleanConst (x:xs) =
     Nothing -> []
     Just a -> a
 
-isPrintChar :: Char -> Bool
-isPrintChar c
-  | ord c >= 32 && ord c <= 126 = True
-  | otherwise = False
+-- parsing escape and non escape characters
+character :: Parser String
+character = fmap return nonEscape <|> escape
 
+escape :: Parser String
+escape = do
+  d <- char '\\'
+  c <- oneOf "\\\"0nrvtbf" -- all the characters which can be escaped
+  return [d, c]
+
+nonEscape :: Parser Char
+nonEscape = noneOf "\\\"\0\n\r\v\t\b\f"
+
+-- parses a Comment, starting with --
 parseComment :: Parser ()
 parseComment = do
   _ <- string "--"
@@ -209,15 +194,28 @@ newLine = do
   return ()
 
 parseWhitespace :: Parser a -> Parser a
-parseWhitespace par = do
+parseWhitespace input = do
   spaces
   optional parseComment
   spaces
-  par
-
-caseChar :: Char -> Parser Char
-caseChar c = char (toLower c) <|> char (toUpper c)
+  input
 
 -- Match any case of the characters
 caseString :: String -> Parser String
 caseString s = try (mapM caseChar s) <?> "\"" ++ s ++ "\""
+caseChar :: Char -> Parser Char
+caseChar c = char (toLower c) <|> char (toUpper c)
+
+-- Accept 2 "" return "
+parseHighComma :: Parser Char
+parseHighComma = do
+                    _ <- char '"'
+                    _ <- char '"'
+                    return '"'
+
+-- for the sake of using
+parseHighComma2 :: Parser [Char]
+parseHighComma2 = do
+                    _ <- char '"'
+                    _ <- char '"'
+                    return ['"']
