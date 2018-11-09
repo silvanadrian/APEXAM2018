@@ -140,12 +140,14 @@ In the active state, no more new connections can be added, also no triggers.
 So as soon as a district and it's neighbors is activated, it should only be possible to either run \texttt{get\_description}, \texttt{enter} or \texttt{take\_action} and of course shutting down.
 
 \subsection{Shutting down}
-When shutting down is called all neighbors of a district will be shut down as well and this can be propagated until all districts and it's nieghbors are shutdown.
+When shutting down is called all neighbors of a district will be shut down as well and this can be propagated until all districts and it's neighbors are shutdown.
 
 \subsubsection{shutdown}
 
 \subsection{Territories with cycle}
 
+
+\subsection{Assassment}
 %\section{Solution}
 %\subsection{Files}
 %\subsection{Running the programm}
@@ -169,8 +171,17 @@ When shutting down is called all neighbors of a district will be shut down as we
 \subsection{Question 1.1: handin/appm/src/Utils.hs}
 \label{appendix:question1-1}
 \inputminted{haskell}{handin/appm/src/Utils.hs}
+\subsection{Question 1.2: handin/appm/src/ParserImpl.hs}
+\label{appendix:question1-2}
+\inputminted{haskell}{handin/appm/src/ParserImpl.hs}
 \subsection{Question 2.1: handin/ravnica/district.erl}
 \inputminted{erlang}{handin/ravnica/district.erl}
-%\inputminted{erlang}{handin/src/quizmaster_helpers.erl}
+\label{appendix:question2-1}
 
+\section{Tests Listing}
+\subsection{Question 1.1 and Question 1.2 handin/appm/tests/BB/Main.hs}
+\inputminted{haskell}{handin/appm/tests/BB/Main.hs}
+\subsection{Question 2.1}
+\inputminted{erlang}{handin/ravnica/district_tests.erl}
+\label{appendix:tests}
 \end{document}

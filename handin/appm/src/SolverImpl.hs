@@ -7,9 +7,13 @@ import Defs
 import Utils
 
 
+
+
 normalize :: Database -> Either String Database
-normalize (DB []) = Right (DB [])
---normalize (DB [Pkg(PName)]) = Left "Hello"
+normalize = undefined
+-- No More time for that
+-- normalize (DB []) = Right (DB [])
+-- normalize (DB [(Pkg n1 ver1 desc1 deps1),(Pkg n2 ver2 desc2 deps2)]) = Left "Hello"
 
 solve :: Database -> Constrs -> Sol -> [Sol]
 solve = undefined

@@ -97,10 +97,16 @@ parser = testGroup "parser"
         -- pName hyphen, end hyphen also allowed
         testCase "Package name hypens" $
                 parseDatabase "package {name 123-wewe-RR-}" @?=
-                 Left "\"Parse Error\" (line 1, column 27):\nunexpected \"}\"\nexpecting letter, digit or \"-\"",
+                Left "\"Parse Error\" (line 1, column 27):\nunexpected \"}\"\nexpecting letter, digit, \"-\" or \"\\\"\"",
         testCase "Package name strings" $
                 parseDatabase "package {name \"123-wewe-RR\"}" @?=
                 Right (DB [Pkg (P "123-wewe-RR") (V [VN 1 ""])  "" []]),
+        testCase "Double High comma equals 1 highcomma" $
+                parseDatabase "package {name \"123\"\"\"}" @?=
+                Right (DB [Pkg {name = P "123\"", ver = V [VN 1 ""], desc = "", deps = []}]),
+        testCase "Double High comma equals 1 highcomma desc" $
+                parseDatabase "package {name \"123\"; description \"\"\"\"}" @?=
+                Right (DB [Pkg {name = P "123", ver = V [VN 1 ""], desc = "\"", deps = []}]),
         -- Case doesn't matter for keywords
         testCase "Case insensitiveness" $
                 parseDatabase "pAckAgE {nAmE foo; vErSiOn 1a.2a.45; deSCripTion \"test\"}" @?=
@@ -184,9 +190,6 @@ parser = testGroup "parser"
        ver4 = V [VN 1 "a", VN 2 "a", VN 45 ""]
        pkg5 = Pkg pname ver4 "test" []
        db5 = DB [pkg5]
-       consts = [(P "foo",(True,V [VN 1 "", VN 2 ""],V [VN 3 ""])),(P "bar",(False,V [VN 0 ""],V [VN 2 ""]))]
-       pkg6 = Pkg pname2 ver4 "test" consts
-       db6 = DB [pkg6]
 
 -- Parser Example
 example = testGroup "Example DB" [

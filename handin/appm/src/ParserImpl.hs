@@ -60,12 +60,26 @@ parsePackage = do
       , deps = filter (\(name, _) -> name /= pname) (cleanConst (concat (deps)))
       }
 
+
+-- Accept 2 "" return "
+parseHighComma :: Parser Char
+parseHighComma = do
+                    _ <- char '"'
+                    _ <- char '"'
+                    return '"'
+
+parseHighComma2 :: Parser [Char]
+parseHighComma2 = do
+                    _ <- char '"'
+                    _ <- char '"'
+                    return ['"']
+
 -- Parse Package name
 parseName :: Parser PName
 parseName = do
   _ <- parseWhitespace (caseString "name")
   _ <- parseWhitespace (optional (char '"'))
-  name <- many1 (letter <|> digit <|> char '-')
+  name <- many1 (letter <|> digit <|> char '-' <|> try parseHighComma)
   guard((last name) /= '-')
   _ <- optional (char '"')
   _ <- optional (string ";")
@@ -96,10 +110,10 @@ parseDescription :: Parser String
 parseDescription = do
   _ <- parseWhitespace (caseString "description")
   parseWhitespace (char '"')
-  description <- many character
+  description <- many (character <|> ( try parseHighComma2))
   char '"'
   _ <- optional (string ";")
-  return $ concat (description)
+  return $ concat(description)
 
 parseRequires :: Parser Constrs
 parseRequires = do
