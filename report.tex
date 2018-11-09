@@ -1,4 +1,4 @@
-\documentclass[12pt,a4paper]{article}
+\documentclass[11pt,a4paper]{article}
 \usepackage{tabularx}
 \usepackage{ltablex}
 \usepackage{graphicx}
@@ -49,25 +49,42 @@ breaklines}
 The Code for this task is attached in the appendix \ref{appendix:question1-1}.
 
 \subsection{Version}
+The Implementation of Version is relatively straight forward and throughly tested by unit tests, which include the examples from the exam text.
+I did ended up with a not working implementation before, so I ended up reimplementing the function which is now working as it should.
 
+\subsection{Merge}
+Merge is implemented as described in the exam text and tested with many different examples in the unit tests, which all run through.
+I had some problems with matching the constraints together, since I kind of lost overview of the function.
+Especially ending up when merging only with same package and the different ones (not matching) where not added to the resulting list but in the end just forgot to append the rest to the result.
 
-\section{Question 1.2: Parsing appm databases}
+\subsection{Assessment}
+The Utility functions seems to work as intended, as least I was able to reuse them in the parser, and thanks to lots of unit tests to both functions I do believe they work as they should.
+
+\section{Parsing appm databases}
 \subsection{Choice of parser library}
 I implemented the Parser for appm in parsec, mostly out of this reason:
 \begin{itemize}
 	\item Better Error handling compared to ReadP
-	\item I do have more experience with Parsec then ReadP
+	\item I do have more experience with Parsec then ReadP (Assignments)
 \end{itemize}
 
-\subsection{Transform Grammar}
-The existing grammar has some ambiguities, like allowing many names, version etc. which now transformed to only allow once
-\begin{minted}{bnf}
-Database ::= \epsilon
+I did end up using \textbf{try} quite a lot, which wasn't my intention at all but with the presented Grammar I haven't found a better solution and overall the parser works more or less.
 
-\end{minted}
+\subsection{Grammar}
+I decided to make a more strict choice about the Clauses, by parsing them in a fixed ordering (name first etc.), I didn't find much of a better solution for that grammar.
 
-\section{Solver
-}
+
+
+\subsection{Assessment}
+I did quite a few unit tests for the parser (including failing ones), since not everything ended up to be working or there was just not enough time left to fixing all the bugs which showed up.
+%\subsection{Transform Grammar}
+%The existing grammar has some ambiguities, like allowing many names, version etc. which now transformed to only allow once
+%\begin{minted}{bnf}
+%Database ::= \epsilon
+
+%\end{minted}
+
+\section{Solver}
 
 \section{Earls of Ravnica}
 The code for this task can be found in Appendix

@@ -8,7 +8,8 @@ import Utils
 
 
 normalize :: Database -> Either String Database
-normalize = undefined
+normalize (DB []) = Right (DB [])
+--normalize (DB [Pkg(PName)]) = Left "Hello"
 
 solve :: Database -> Constrs -> Sol -> [Sol]
 solve = undefined

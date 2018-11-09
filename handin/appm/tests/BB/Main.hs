@@ -5,7 +5,7 @@ module Main where
 import Defs
 import Utils
 import Parser (parseDatabase)
-import Solver (install)
+import Solver (install, normalize)
 
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -15,8 +15,8 @@ tests = testGroup "Unit Tests"
     [
         utilities,
         parser,
-        example--,
-        --normalize
+        example,
+        normalizeTests
         --predefined
     ]
 
@@ -97,10 +97,10 @@ parser = testGroup "parser"
         -- pName hyphen, end hyphen also allowed
         testCase "Package name hypens" $
                 parseDatabase "package {name 123-wewe-RR-}" @?=
-                Right (DB [Pkg (P "123-wewe-RR-") (V [VN 1 ""])  "" []]),
+                 Left "\"Parse Error\" (line 1, column 27):\nunexpected \"}\"\nexpecting letter, digit or \"-\"",
         testCase "Package name strings" $
-                parseDatabase "package {name \"123-wewe-RR-\"}" @?=
-                Right (DB [Pkg (P "123-wewe-RR-") (V [VN 1 ""])  "" []]),
+                parseDatabase "package {name \"123-wewe-RR\"}" @?=
+                Right (DB [Pkg (P "123-wewe-RR") (V [VN 1 ""])  "" []]),
         -- Case doesn't matter for keywords
         testCase "Case insensitiveness" $
                 parseDatabase "pAckAgE {nAmE foo; vErSiOn 1a.2a.45; deSCripTion \"test\"}" @?=
@@ -134,13 +134,38 @@ parser = testGroup "parser"
         -- doesn't work to change the lower, greater equal
         testCase "Low/High changed" $
                          parseDatabase "package {name foo2; requires foo >=3 , bar < 8.0.0;}" @?=
-                         Left "\"Parse Error\" (line 1, column 38):\nunexpected \",\"\nexpecting space or \"}\"",
+                         Left "\"Parse Error\" (line 1, column 38):\nunexpected \",\"\nexpecting space, \"--\", white space or \"}\"",
          -- Whitespace and other more special things
         testCase "whitespaces pkg and name" $
         parseDatabase "package     {name        foo2;       requires       foo     <      3    ,      foo    >=      8.0.0a; conflicts bar < 3 , bar >= 8   }" @?=
             Right (DB [Pkg {name = P "foo2", ver = V [VN 1 ""], desc = "",
                                      deps = [(P "foo",(True,V [VN 3 ""],V [VN 8 "",VN 0 "",VN 0 "a"])),
-                                     (P "bar",(False,V [VN 3 ""],V [VN 8 ""]))]}])
+                                     (P "bar",(False,V [VN 3 ""],V [VN 8 ""]))]}]),
+        -- Comment parsing
+        testCase "Comment parsing" $
+        parseDatabase "   --comment\npackage {name --comment\n foo; --comment\ndescription \"test\" --comment\n}" @?=
+        Right (DB [Pkg {name = P "foo", ver = V [VN 1 ""], desc = "test", deps = []}]),
+        testCase "Comment name" $
+        parseDatabase "package {name \"fo--o\"; description \"te--st\"}" @?=
+        Right (DB [Pkg {name = P "fo--o", ver = V [VN 1 ""], desc = "te--st", deps = []}]),
+        -- failing to parse, comment after package
+        testCase "Comment after package" $
+        parseDatabase "package {name \"foo\"; description \"test\"} --comment" @?=
+        Left "\"Parse Error\" (line 1, column 51):\nunexpected end of input\nexpecting lf new-line, end of input, white space or \"package\"",
+        -- Wrong Version Number
+        testCase "parse too large Version" $
+        parseDatabase "package {name \"foo\"; version 1000000}" @?=
+        Left "\"Parse Error\" (line 1, column 22):\nunexpected \"v\"\nexpecting space, \"--\", white space or \"}\"",
+        testCase "Edge parsable" $
+        parseDatabase "package {name \"foo\"; version 999999aaaa}" @?=
+        Right (DB [Pkg {name = P "foo", ver = V [VN 999999 "aaaa"], desc = "", deps = []}]),
+        -- Z gets ignored, since not lowercase
+        testCase "Edge parsable" $
+        parseDatabase "package {name \"foo\"; version 999999Z}" @?=
+        Right (DB [Pkg {name = P "foo", ver = V [VN 999999 ""], desc = "", deps = []}]),
+        testCase "Version String too long" $
+        parseDatabase "package {name \"foo\"; version 9999aaaaa}" @?=
+        Left "\"Parse Error\" (line 1, column 22):\nunexpected \"v\"\nexpecting space, \"--\", white space or \"}\""
     ]
      where
        ver = V [VN 1 ""]
@@ -177,9 +202,13 @@ example = testGroup "Example DB" [
         Pkg {name = P "baz", ver = V [VN 6 "",VN 1 "",VN 2 ""], desc = "", deps = []}])
     ]
 
--- normalize = testGroup "Normalize" [
---         testCase "small normalize" $ normalize
---     ]
+normalizeTests = testGroup "Normalize" [
+        testCase "empty Database" $ normalize (DB []) @?= Right (DB [])
+
+-- DB [Pkg {name = P "foo", ver = V [VN 2 "",VN 3 ""],
+-- desc = "The foo application",
+-- deps = [(P "bar",(True,V [VN 1 "",VN 0 ""],V [VN 1000000 ""]))]}]
+    ]
 
 -- just a sample; feel free to replace with your own structure
 predefined = testGroup "predefined"
