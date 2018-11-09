@@ -184,36 +184,29 @@ So this very basic solution will fail for bigger cycles, because here the shutdo
 	\caption{Example of a failing cycle}
 \end{figure}
 
+
 \subsection{Triggers}
-My Solution does support triggers and according to my tests they seem to work 
+My Solution does support triggers and according to my tests they seem to work.
+Also my solution tries to check if a Trigger is well behaved by running it in a different process on which I can set a timeout of 2 seconds, so the server won't break down when a not well behaved trigger runs.
+I do check that the Trigger needs to have 3 parameters, so technically any function can be passed with 3 parameters but only if the trigger return the right format which is: \mint{erlang}|{Creature,Creatures}|
 
-\subsection{Assassement}
 
+
+
+\subsection{Assessament}
 \subsubsection{Scope of Test Cases}
+I did lot of Test cases with \textbf{eunit} which should showcase how much my solution is able to do.
+So from Cycles to every call possible (at least in the easiest way), since I don't tested the responses in intermediate states and lots of other things which are not very easy to test just like that.
 \subsubsection{Correctness}
+According to my tests I do believe I have a somewhat correct solution, even though the nasty cycles are not in total solved/removed.
+Otherwise I'm quite confident in my solution and the correctness of it, even though there are probably lots of more nasty test cases I wasn't able to think of in the shot period of time I had.
 \subsubsection{Code Quality}
+The code quality is somewhat mediocre, since there is lots of repetition and duplicated code which could be removed/improved but out of the time constraints refactoring wasn't my top priority. Therefore the overall code is ok but not really great, at least all helper functions are grouped together, and the states are ordered by how the server will go through them from top to bottom.
 \section{QuickCheck district}
 The code for this task can be found in Appendix \ref{appendix:tests}
 \subsection{Territory Generator}
 I did write a Generator for \textbf{territory/0} but I wasn't able to write the Properties for activate and take\_action, since the time ran out.
 So I only started on this task but wasn't able to finish it totally.
-%\section{Solution}
-%\subsection{Files}
-%\subsection{Running the programm}
-%\subsection{Running the tests}
-%\section{Implementation}
-%\subsection{Gen-Statem}
-
-%\subsection{Data Structure}
-%\subsection{All states}
-
-%\section{Assessment}
-
-%\subsection{Scope of Test Cases}
-
-%\subsection{Correctness}
-
-%\subsection{Code Quality}
 
 \appendix
 \section{Code Listing}
